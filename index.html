@@ -563,7 +563,7 @@ function playTone(channel) {
 
   osc.type = 'sine';
   osc.frequency.value = 440;
-  gain.gain.value = 0.4;
+  gain.gain.value = 0.8;
   panner.pan.value = channel === 'left' ? -1 : channel === 'right' ? 1 : 0;
 
   osc.connect(gain);
@@ -571,9 +571,9 @@ function playTone(channel) {
   panner.connect(spkCtx.destination);
 
   osc.start();
-  gain.gain.setValueAtTime(0.4, spkCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.0001, spkCtx.currentTime + 1.5);
-  osc.stop(spkCtx.currentTime + 1.5);
+  gain.gain.setValueAtTime(0.8, spkCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, spkCtx.currentTime + 3.0);
+  osc.stop(spkCtx.currentTime + 3.0);
 
   const wave = document.getElementById('speakerWave');
   const status = document.getElementById('speakerStatus');
@@ -588,7 +588,7 @@ function playTone(channel) {
   setTimeout(() => {
     wave.classList.remove('playing');
     status.textContent = 'Did you hear it? If not, check your volume or audio output.';
-  }, 1600);
+  }, 3100);
 }
 
 // ═══════════════════════════════════════════════

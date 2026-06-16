@@ -1,0 +1,3030 @@
+<!DOCTYPE html>
+<!-- v2.1.0 -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap" rel="stylesheet">
+<style>
+  @font-face {
+    font-family: "Libre Barcode 39";
+    font-style: normal;
+    font-weight: 400;
+    src: url(https://fonts.gstatic.com/s/librebarcode39/v20/BzvLsX3ZTklsy4T0DGkQpbHdSPKASlQFgBCr.woff2) format("woff2");
+  }
+</style>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Check-In / Out</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --black  : #111111;
+    --dark   : #1e1e1e;
+    --accent : #C8102E;
+    --green  : #22c55e;
+    --red    : #ef4444;
+    --surface: #f4f4f4;
+    --card   : #ffffff;
+    --border : #e0e0e0;
+    --text   : #111111;
+    --muted  : #666666;
+    --radius : 12px;
+    --shadow : 0 4px 24px rgba(0,0,0,.10);
+  }
+
+  body { font-family:'DM Sans',sans-serif; background:var(--surface); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+
+  /* Loading */
+  #loadingOverlay { position:fixed; inset:0; background:var(--black); display:flex; align-items:center; justify-content:center; z-index:999; flex-direction:column; gap:1rem; color:#fff; transition:opacity .4s; }
+  #loadingOverlay.hidden { opacity:0; pointer-events:none; }
+  .spinner-lg { width:40px; height:40px; border:3px solid rgba(255,255,255,.2); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
+
+  /* Header */
+  header { background:var(--black); color:#fff; padding:0 1.5rem; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; box-shadow:0 2px 16px rgba(0,0,0,.3); gap:1rem; }
+  .brand { display:flex; align-items:center; gap:.65rem; flex-shrink:0; }
+  .brand-name { font-size:.95rem; font-weight:600; }
+  .brand-sub  { font-size:.62rem; opacity:.5; letter-spacing:.05em; text-transform:uppercase; }
+  .nav { display:flex; gap:2px; }
+  .ntab { background:transparent; border:none; color:rgba(255,255,255,.5); font:500 .78rem 'DM Sans',sans-serif; padding:.38rem .8rem; border-radius:5px; cursor:pointer; transition:all .15s; }
+  .overdue-badge { background:#EF4444; color:#fff; font-size:.6rem; font-weight:700; border-radius:20px; padding:.05rem .35rem; margin-left:.3rem; vertical-align:middle; display:inline-block; }
+  .ntab:hover  { background:rgba(255,255,255,.08); color:#fff; }
+  .ntab.a { background:rgba(255,255,255,.15); color:#fff; }
+  .hdr-selectors { display:flex; align-items:center; gap:.6rem; }
+  .hdr-sel-group { display:flex; align-items:center; gap:.35rem; }
+  .hdr-sel-group label { font-size:.68rem; opacity:.45; text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; }
+  .hdr-select { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); color:#fff; font:500 .8rem 'DM Sans',sans-serif; padding:.28rem .6rem; border-radius:5px; outline:none; cursor:pointer; }
+  .hdr-select option { background:#222; }
+  .hdr-select:focus { border-color:var(--accent); }
+  .uchip { font-size:.72rem; opacity:.65; display:flex; align-items:center; gap:.4rem; flex-shrink:0; }
+  .rbadge { font-size:.6rem; font-weight:700; padding:.15rem .45rem; border-radius:20px; letter-spacing:.05em; text-transform:uppercase; }
+  .rb-staff    { background:rgba(200,16,46,.22); color:#ff7a88; }
+  .rb-district { background:rgba(200,16,46,.38); color:#ffaab5; }
+  .rb-student  { background:rgba(255,255,255,.15); color:#fff; }
+
+  /* Pages */
+  .page { display:none; flex:1; padding:1.75rem; max-width:1200px; margin:0 auto; width:100%; }
+  .page.active { display:block; }
+
+  /* Cards */
+  .card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:1.4rem; box-shadow:var(--shadow); }
+  .card-title { font-size:.68rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:.9rem; }
+
+  /* Scan layout */
+  .scan-layout { display:grid; grid-template-columns:1fr 340px; gap:1.4rem; align-items:start; }
+  .kiosk-layout { max-width:520px; margin:0 auto; }
+
+  /* Scan hero */
+  .scan-hero { background:var(--black); border-radius:var(--radius); padding:2rem 1.75rem; text-align:center; color:#fff; position:relative; overflow:hidden; }
+  .scan-hero-label { font-size:.67rem; letter-spacing:.12em; text-transform:uppercase; opacity:.4; margin-bottom:1.1rem; }
+
+  /* Station selector inside hero */
+  .station-select-wrap { margin-bottom:1.25rem; }
+  .station-select-label { font-size:.72rem; opacity:.5; letter-spacing:.07em; text-transform:uppercase; margin-bottom:.45rem; display:block; }
+  .station-select {
+    width:100%; max-width:340px; background:rgba(255,255,255,.09);
+    border:2px solid rgba(255,255,255,.18); border-radius:9px;
+    color:#fff; font:600 1rem 'DM Sans',sans-serif;
+    padding:.7rem 1rem; outline:none; cursor:pointer;
+    transition:border-color .2s; appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='rgba(255,255,255,0.5)' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right .9rem center;
+    padding-right:2.5rem;
+  }
+  .station-select option { background:#1e1e1e; color:#fff; }
+  .station-select:focus { border-color:#fff; }
+  .station-select.unset { color:rgba(255,255,255,.35); border-style:dashed; }
+
+  .barcode-wrap { position:relative; margin:0 auto 1.5rem; width:100%; max-width:340px; }
+  .barcode-input {
+    width:100%; background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.15);
+    border-radius:9px; color:#fff; font:500 1.35rem 'DM Mono',monospace;
+    letter-spacing:.1em; padding:.85rem 1rem; outline:none;
+    transition:border-color .2s,background .2s,opacity .2s; text-align:center;
+  }
+  .barcode-input::placeholder { color:rgba(255,255,255,.25); font-size:.9rem; letter-spacing:0; }
+  .barcode-input:focus { border-color:#fff; background:rgba(255,255,255,.12); }
+  .barcode-input:disabled { opacity:.35; cursor:not-allowed; }
+  .bc-card { border:.5px solid var(--border); border-radius:6px; padding:.5rem .4rem .4rem;
+    display:flex; flex-direction:column; align-items:center; gap:4px; background:#fff;
+    page-break-inside:avoid; break-inside:avoid; }
+  .bc-barcode { font-family:"Libre Barcode 39", monospace; line-height:1;
+    display:block; color:#000; text-align:center;
+    white-space:nowrap; letter-spacing:0;
+    width:100%; overflow:visible; }
+  .bc-name { font-size:9.5px; font-weight:700; text-align:center; line-height:1.3; max-width:100%; word-break:break-word; }
+    .scan-hint { font-size:.76rem; opacity:.35; margin-bottom:1.5rem; }
+  .no-station-hint { font-size:.8rem; color:rgba(255,255,255,.45); margin-bottom:1.5rem; }
+
+  /* Confirmation banner */
+  .confirm-banner { border-radius:9px; padding:1rem 1.1rem; display:flex; align-items:center; gap:.8rem; text-align:left; opacity:0; transform:translateY(8px); transition:opacity .25s,transform .25s; min-height:72px; }
+  .confirm-banner.visible { opacity:1; transform:translateY(0); }
+  .confirm-banner.in  { background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.25); }
+  .confirm-banner.out { background:rgba(239,68,68,.1);  border:1px solid rgba(239,68,68,.25); }
+  .confirm-banner.err { background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.25); }
+  .confirm-icon { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:1.1rem; }
+  .in  .confirm-icon { background:rgba(34,197,94,.2);  color:#4ade80; }
+  .out .confirm-icon { background:rgba(239,68,68,.15); color:#f87171; }
+  .err .confirm-icon { background:rgba(245,158,11,.15);color:#fbbf24; }
+  .confirm-name { font-size:.95rem; font-weight:600; color:#fff; line-height:1.2; }
+  .confirm-meta { font-size:.75rem; opacity:.5; margin-top:.12rem; }
+  .confirm-badge { margin-left:auto; font-size:.68rem; font-weight:700; letter-spacing:.08em; padding:.28rem .6rem; border-radius:20px; }
+  .in  .confirm-badge { background:var(--green); color:#fff; }
+  .out .confirm-badge { background:var(--red);   color:#fff; }
+
+  /* Stats sidebar */
+  .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; margin-bottom:1rem; }
+  .stat-box  { background:var(--surface); border-radius:8px; padding:1rem .75rem; text-align:center; }
+  .stat-num  { font-size:2.2rem; font-weight:700; line-height:1; color:var(--accent); }
+  .stat-lbl  { font-size:.65rem; color:var(--muted); margin-top:.3rem; text-transform:uppercase; letter-spacing:.06em; }
+  .present-list { max-height:360px; overflow-y:auto; }
+  .present-item { display:flex; align-items:center; gap:.6rem; padding:.5rem 0; border-bottom:.5px solid var(--border); font-size:.84rem; }
+  .present-item:last-child { border-bottom:none; }
+  .dot { width:6px; height:6px; border-radius:50%; background:var(--green); flex-shrink:0; }
+  .present-name { font-weight:500; flex:1; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--green,#22C55E); flex-shrink:0; }
+  .present-bldg { color:var(--muted); font-size:.72rem; }
+
+  /* Kiosk history */
+  .history-item { display:flex; align-items:center; gap:.65rem; padding:.5rem 0; border-bottom:.5px solid var(--border); font-size:.82rem; }
+  .history-item:last-child { border-bottom:none; }
+  .privacy-notice { background:#fff0f2; border:.5px solid #ffc1c9; border-radius:7px; padding:.65rem .9rem; font-size:.77rem; color:#7a0016; margin-bottom:1rem; display:flex; align-items:center; gap:.45rem; }
+
+  /* Log controls */
+  .log-controls { display:flex; gap:.6rem; margin-bottom:1rem; flex-wrap:wrap; align-items:center; }
+  .log-controls input, .log-controls select { border:.5px solid var(--border); border-radius:7px; padding:.42rem .7rem; font:400 .83rem 'DM Sans',sans-serif; background:var(--card); color:var(--text); outline:none; }
+  .log-controls input:focus, .log-controls select:focus { border-color:var(--accent); }
+  .date-nav { display:flex; align-items:center; gap:.32rem; }
+  .date-nav button { background:var(--surface); border:.5px solid var(--border); border-radius:5px; min-width:26px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:.85rem; padding:0 .3rem; white-space:nowrap; }
+  .date-nav button:hover { background:var(--border); }
+
+  /* Tables */
+  table { width:100%; border-collapse:collapse; font-size:.83rem; }
+  thead th { padding:.55rem .85rem; text-align:left; font-size:.67rem; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); border-bottom:1.5px solid var(--border); }
+  tbody tr { border-bottom:.5px solid var(--border); transition:background .1s; }
+  tbody tr:hover { background:var(--surface); }
+  tbody td { padding:.55rem .85rem; }
+  .badge { display:inline-block; padding:.17rem .52rem; border-radius:20px; font-size:.67rem; font-weight:700; letter-spacing:.05em; }
+  .badge-in  { background:#dcfce7; color:#166534; }
+  .badge-out { background:#fee2e2; color:#991b1b; }
+
+  /* Toolbar */
+  .toolbar { display:flex; gap:.6rem; margin-bottom:1rem; flex-wrap:wrap; align-items:center; }
+  .toolbar select, .toolbar input { border:.5px solid var(--border); border-radius:7px; padding:.42rem .7rem; font:400 .83rem 'DM Sans',sans-serif; background:var(--card); color:var(--text); outline:none; flex:1; min-width:140px; max-width:230px; }
+
+  /* Buttons */
+  .btn { display:inline-flex; align-items:center; gap:.35rem; border:none; border-radius:7px; cursor:pointer; font:500 .82rem 'DM Sans',sans-serif; padding:.48rem .95rem; transition:filter .15s,transform .1s; white-space:nowrap; }
+  .btn:active { transform:scale(.97); }
+  .btn-primary { background:var(--accent); color:#fff; }
+  .btn-primary:hover { filter:brightness(1.1); }
+  .btn-outline { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  .btn-outline:hover { background:#fff0f2; }
+  .btn-sm  { padding:.27rem .58rem; font-size:.75rem; border-radius:5px; }
+  .btn-icon { background:none; border:none; cursor:pointer; padding:.2rem .36rem; border-radius:4px; color:var(--muted); font-size:.86rem; transition:background .15s,color .15s; }
+  .btn-icon:hover { background:var(--surface); color:var(--text); }
+  .btn:disabled, .btn[disabled] { opacity:.4; cursor:not-allowed; filter:none; }
+
+  /* Modal */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200; align-items:center; justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--card); border-radius:var(--radius); padding:1.65rem; width:430px; max-width:95vw; box-shadow:0 20px 60px rgba(0,0,0,.25); }
+  .modal-title { font-size:1rem; font-weight:600; margin-bottom:1rem; }
+  .form-row   { margin-bottom:.85rem; }
+  .form-label { font-size:.77rem; font-weight:500; color:var(--muted); margin-bottom:.28rem; display:block; }
+  .form-input { width:100%; border:.5px solid var(--border); border-radius:7px; padding:.52rem .78rem; font:400 .87rem 'DM Sans',sans-serif; color:var(--text); outline:none; transition:border-color .15s; }
+  .form-input:focus { border-color:var(--accent); }
+  .form-actions { display:flex; justify-content:flex-end; gap:.6rem; margin-top:1.25rem; }
+
+  /* Admin grid */
+  .admin-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.1rem; margin-bottom:1.1rem; }
+  .acard { background:var(--card); border:.5px solid var(--border); border-radius:var(--radius); padding:1.2rem; box-shadow:var(--shadow); }
+  .acard-title { font-size:.86rem; font-weight:600; margin-bottom:.32rem; }
+  .acard-desc  { font-size:.78rem; color:var(--muted); margin-bottom:.85rem; line-height:1.5; }
+
+  /* Station list in admin */
+  .station-item { display:flex; align-items:center; justify-content:space-between; padding:.42rem 0; border-bottom:.5px solid var(--border); font-size:.82rem; }
+  .station-item:last-child { border-bottom:none; }
+  .station-bldg-tag { font-size:.68rem; background:var(--surface); border:.5px solid var(--border); border-radius:4px; padding:.12rem .4rem; color:var(--muted); margin-right:.5rem; }
+
+  /* Toast */
+  .toast-wrap { position:fixed; bottom:1.25rem; right:1.25rem; z-index:300; display:flex; flex-direction:column; gap:.42rem; }
+  .toast { background:var(--black); color:#fff; border-radius:7px; padding:.65rem .95rem; font-size:.82rem; max-width:290px; box-shadow:0 8px 24px rgba(0,0,0,.2); animation:toastIn .25s ease; display:flex; align-items:center; gap:.52rem; }
+  .toast.success { border-left:3px solid var(--green); }
+  .toast.error   { border-left:3px solid var(--red); }
+  .toast.info    { border-left:3px solid #fff; }
+  @keyframes toastIn { from { opacity:0; transform:translateX(20px); } }
+
+  .spinner { width:14px; height:14px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .6s linear infinite; display:inline-block; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .empty-state { text-align:center; padding:2.25rem 1rem; color:var(--muted); font-size:.86rem; }
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+
+  /* QR label styles */
+  @media (max-width: 860px) {
+    #bcPickerPanel { order: 1; }
+    #qrPickerPanel { order: 1; }
+  }
+  .bc-label { background:transparent; border:.5px solid var(--border); border-radius:6px; padding:.4rem .45rem .35rem; display:flex; flex-direction:column; align-items:center; gap:3px; break-inside:avoid; }
+  .bc-label svg { display:block; max-width:100%; }
+  .bc-label-name { font-size:10px; font-weight:600; text-align:center; line-height:1.3; max-width:2in; word-break:break-word; color:var(--text); }
+
+
+
+  @media print {
+    header, #staffNav, #hdrSelectors, #userChip,
+    #page-scan, #page-log, #page-students, #page-admin, #page-inv,
+    .kiosk-layout, .scan-layout, .toast-wrap, .modal-overlay { display:none !important; }
+    /* Barcode print -- show page-bc, hide picker panel, fill full page width */
+    #page-bc { display:block !important; padding:.1in !important; }
+    #bcLayout { display:block !important; }
+    #bcLayout > div:first-child { display:none !important; }
+    #bcSheetCard { border:none !important; box-shadow:none !important; padding:0 !important; width:100% !important; }
+    #bcGrid { gap:.1in .05in !important; width:100% !important; }
+    .bc-card { border-color:#ccc !important; page-break-inside:avoid; break-inside:avoid; }
+    .bc-barcode { display:block !important; font-family:"Libre Barcode 39", monospace !important; color:#000 !important; }
+    @page { size:letter; margin:.35in; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <div class="spinner-lg"></div>
+  <p style="font-size:.88rem;opacity:.6">Verifying your account…</p>
+</div>
+
+<header>
+  <div class="brand">
+    <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+      <rect width="26" height="26" rx="6" fill="#C8102E"/>
+      <path d="M6 9h14M6 13h14M6 17h8" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div class="brand-name">Marshall Public Schools</div>
+      <div class="brand-sub">Check-In / Out</div>
+    </div>
+  </div>
+
+  <div class="nav" id="staffNav" style="display:none">
+    <button class="ntab a" onclick="showPage('scan',this)">📷 Scan</button>
+    <button class="ntab"   onclick="showPage('log',this)">📋 Log</button>
+    <button class="ntab"   onclick="showPage('students',this)">👥 Students</button>
+    <button class="ntab"   onclick="showPage('admin',this)">⚙️ Admin</button>
+    <button class="ntab"   onclick="showPage('bc',this)" id="bcTab" style="display:none">🖨️ Barcodes</button>
+    <button class="ntab"   onclick="showPage('inv',this)" id="invTab" style="display:none">📦 Inventory</button>
+  </div>
+
+  <!-- Building + Station selectors (district staff only) -->
+  <div class="hdr-selectors" id="hdrSelectors" style="display:none">
+    <div class="hdr-sel-group">
+      <label>Building</label>
+      <select class="hdr-select" id="buildingSelect" onchange="onBuildingChange()"></select>
+    </div>
+  </div>
+
+  <div class="uchip" id="userChip" style="display:none">
+    <span id="userEmail" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+    <span class="rbadge" id="roleBadge"></span>
+  </div>
+</header>
+
+<!-- ══ SCAN PAGE ══ -->
+<div id="page-scan" class="page active">
+
+  <!-- Staff layout -->
+  <div class="scan-layout" id="staffScanLayout" style="display:none">
+    <div class="scan-hero">
+      <div class="scan-hero-label" id="scanHeroLabel">Select a station to begin</div>
+
+      <!-- Station selector -->
+      <div class="station-select-wrap">
+        <span class="station-select-label">Station</span>
+        <select class="station-select unset" id="stationSelect" onchange="onStationChange()">
+          <option value="">— Select station —</option>
+        </select>
+      </div>
+
+      <!-- Barcode input (disabled until station selected) -->
+      <div class="barcode-wrap">
+        <input class="barcode-input" id="barcodeInput" type="text" inputmode="none"
+          placeholder="Scan or type barcode…" autocomplete="off" autocorrect="off"
+          spellcheck="false" disabled>
+      </div>
+      <div id="scanHint" class="no-station-hint">Select a station above to enable scanning</div>
+
+      <div class="confirm-banner" id="confirmBanner">
+        <div class="confirm-icon" id="confirmIcon"></div>
+        <div>
+          <div class="confirm-name" id="confirmName"></div>
+          <div class="confirm-meta" id="confirmMeta"></div>
+        </div>
+        <div class="confirm-badge" id="confirmBadge"></div>
+      </div>
+    </div>
+
+    <!-- Stats sidebar -->
+    <div>
+      <div class="card" style="border-top:3px solid var(--accent)">
+        <div class="card-title" id="dashTitle">Today's Summary</div>
+        <div class="stat-grid">
+          <div class="stat-box">
+            <div class="stat-num" id="statIn">—</div>
+            <div class="stat-lbl">In Now</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" id="statTotal">—</div>
+            <div class="stat-lbl">Today's Scans</div>
+          </div>
+        </div>
+        <div class="card-title" style="margin-top:.75rem;margin-bottom:.4rem">Currently Checked In</div>
+        <div class="present-list" id="presentList">
+          <div class="empty-state" style="padding:1rem;font-size:.78rem">Select a station to see who's in</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kiosk account layout (staff account in /Kiosk OU -- scan only, count only, no names) -->
+  <div class="kiosk-layout" id="kioskScanLayout" style="display:none">
+    <div class="scan-hero" style="margin-bottom:1.4rem">
+      <div class="scan-hero-label" id="kioskHeroLabel">Select a station to begin</div>
+
+      <!-- Station selector -->
+      <div class="station-select-wrap">
+        <span class="station-select-label">Station</span>
+        <select class="station-select unset" id="stationSelectKiosk" onchange="onKioskStationChange()">
+          <option value="">— Select station —</option>
+        </select>
+      </div>
+
+      <div class="barcode-wrap">
+        <input class="barcode-input" id="barcodeInputKiosk" type="text" inputmode="none"
+          placeholder="Scan or type barcode…" autocomplete="off" autocorrect="off"
+          spellcheck="false" disabled>
+      </div>
+      <div id="kioskScanHint" class="no-station-hint">Select a station above to enable scanning</div>
+
+      <div class="confirm-banner" id="confirmBannerKiosk">
+        <div class="confirm-icon" id="confirmIconKiosk"></div>
+        <div>
+          <div class="confirm-name" id="confirmNameKiosk"></div>
+          <div class="confirm-meta" id="confirmMetaKiosk"></div>
+        </div>
+        <div class="confirm-badge" id="confirmBadgeKiosk"></div>
+      </div>
+    </div>
+
+    <!-- Count only -- no names -->
+    <div class="card" style="text-align:center;padding:1.75rem">
+      <div class="card-title">Currently Checked In</div>
+      <div class="stat-num" id="kioskCount" style="font-size:3rem;color:var(--accent)">—</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:.5rem" id="kioskCountLabel">students</div>
+    </div>
+
+    <!-- Item checkout / return (optional — completely separate from attendance) -->
+    <div class="card" style="margin-top:1rem">
+      <div class="card-title" style="margin-bottom:.5rem">📦 Item Checkout / Return</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:.85rem;line-height:1.5">
+        Optional. Scan your student ID, then scan the item barcode.
+      </div>
+
+      <!-- Step 1: student ID -->
+      <div id="kioskCoStep1">
+        <label class="form-label">Step 1 — Scan your student ID</label>
+        <input class="form-input" id="kioskCoStudentInput"
+          placeholder="Scan student barcode…"
+          autocomplete="off" spellcheck="false"
+          style="margin-bottom:.5rem">
+        <div id="kioskCoStudentPreview" style="font-size:.8rem;color:var(--muted);min-height:1.2rem;margin-bottom:.5rem"></div>
+      </div>
+
+      <!-- Step 2: item barcode (enabled after student scanned) -->
+      <div id="kioskCoStep2">
+        <label class="form-label">Step 2 — Scan item barcode</label>
+        <div style="display:flex;gap:.5rem">
+          <input class="form-input" id="kioskCoItemInput"
+            placeholder="Scan item barcode…"
+            autocomplete="off" spellcheck="false"
+            style="flex:1" disabled>
+          <button class="btn btn-outline btn-sm" onclick="kioskCoClear()" title="Start over">✕</button>
+        </div>
+      </div>
+
+      <!-- Result banner -->
+      <div class="confirm-banner" id="kioskCoResult" style="margin-top:.65rem"></div>
+    </div>
+  </div>
+
+  <!-- Student view — read-only: history + item checkouts only -->
+  <div class="kiosk-layout" id="studentScanLayout" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start">
+
+      <!-- Check-in/out history -->
+      <div class="card">
+        <div class="card-title">Your Check-In / Out History</div>
+        <div id="myHistoryList">
+          <div class="empty-state" style="padding:1rem;font-size:.8rem">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Item checkouts -->
+      <div class="card">
+        <div class="card-title">Your Item Checkouts</div>
+        <div id="myItemCheckouts">
+          <div class="empty-state" style="padding:1rem;font-size:.8rem">Loading…</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══ LOG PAGE ══ -->
+<div id="page-log" class="page">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <div class="card-title" style="margin:0">Activity Log -- <span id="logLabel">Select a station</span></div>
+      <button class="btn btn-outline btn-sm" onclick="loadLog()">↺ Refresh</button>
+    </div>
+    <div class="log-controls">
+      <div class="date-nav">
+        <button onclick="changeDate(-1)">‹</button>
+        <input type="date" id="logDate" onchange="loadLog()">
+        <button onclick="changeDate(1)">›</button>
+        <button class="btn btn-outline btn-sm" style="white-space:nowrap;padding:.28rem .65rem" onclick="goToToday()">Today</button>
+      </div>
+      <!-- Station filter for log -->
+      <select id="logStationSelect" onchange="onLogStationChange()" style="min-width:140px">
+        <option value="">— Select station —</option>
+      </select>
+      <input type="text" id="logSearch" placeholder="Search name or ID…" oninput="filterLog()" style="min-width:140px">
+      <select id="logActionFilter" onchange="filterLog()">
+        <option value="">All Actions</option>
+        <option value="IN">Check In</option>
+        <option value="OUT">Check Out</option>
+      </select>
+    </div>
+    <div id="logDateSummary" style="font-size:.78rem;color:var(--muted);margin-bottom:.7rem;"></div>
+    <table>
+      <thead><tr><th>Time</th><th>Student ID</th><th>Name</th><th>Action</th></tr></thead>
+      <tbody id="logBody"><tr><td colspan="4" class="empty-state">Select a station and date above.</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ STUDENTS PAGE ══ -->
+<div id="page-students" class="page">
+  <div class="card">
+    <div class="toolbar">
+      <input type="text" id="stuSearch" placeholder="Search students…" oninput="filterStudents()">
+      <!-- Station selector needed for Force In/Out actions -->
+      <select id="stuStationSelect" style="min-width:160px" onchange="onStuStationChange()">
+        <option value="">— Station for force actions —</option>
+      </select>
+      <div style="margin-left:auto;display:flex;gap:.5rem;">
+        <button class="btn btn-outline btn-sm" onclick="loadStudents()">↺ Refresh</button>
+        
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Building</th><th>Actions</th></tr></thead>
+      <tbody id="stuBody"><tr><td colspan="5" class="empty-state">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ ADMIN PAGE ══ -->
+<div id="page-admin" class="page">
+
+  <!-- SETUP ORDER: 1. Initialize  2. Import OUs  3. Re-sync Students  4. Add Stations -->
+  <div class="admin-grid">
+
+    <div class="acard">
+      <div class="acard-title">① Initialize Sheets</div>
+      <div class="acard-desc">Run once on first setup. Creates the Students, OUs, Stations, and SyncLog tabs in the spreadsheet, installs the nightly sync trigger, and runs the first full student import from Google Admin.</div>
+      <button class="btn btn-primary btn-sm" id="btnInitSheets" onclick="initSheets()">Initialize &amp; Sync</button>
+      <div id="initResult" style="margin-top:.6rem;font-size:.78rem;color:var(--muted);"></div>
+    </div>
+
+    <div class="acard">
+      <div class="acard-title">② Import Organizational Units</div>
+      <div class="acard-desc">Pulls all OUs from Google Admin into the sheet. Run after Initialize, and any time your OU structure changes.</div>
+      <button class="btn btn-primary btn-sm" id="btnImportOUs" onclick="importOUs()">Import OUs from Google Admin</button>
+      <div id="ouResult" style="margin-top:.6rem;font-size:.78rem;color:var(--muted);"></div>
+    </div>
+
+    <div class="acard">
+      <div class="acard-title">③ Re-sync Students</div>
+      <div class="acard-desc">Manually re-syncs students from Google Admin. The nightly auto-sync handles this automatically — only run this if you need an immediate update mid-day.</div>
+      <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.5rem">
+        <select id="importOuSelect" style="flex:1;min-width:130px;border:.5px solid var(--border);border-radius:6px;padding:.38rem .55rem;font-size:.82rem;font-family:inherit">
+          <option value="">All OUs</option>
+        </select>
+        <button class="btn btn-primary btn-sm" id="btnImportStudents" onclick="importStudents()">Re-sync Now</button>
+      </div>
+      <div id="stuImportResult" style="font-size:.78rem;color:var(--muted);"></div>
+      <div id="importStudentsNote" style="margin-top:.4rem;font-size:.75rem;color:var(--muted);"></div>
+    </div>
+
+    <div class="acard">
+      <div class="acard-title">Loaded OUs</div>
+      <div id="ouListPreview" style="max-height:130px;overflow-y:auto;font-size:.76rem;color:var(--muted);">
+        No OUs loaded — click Import OUs first.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ④ Manage Stations — add stations for each building after sheets are initialized -->
+  <div class="card" style="margin-top:1.1rem" id="stationMgmtCard">
+    <div class="card-title">④ Manage Check-In Stations</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.1rem;">
+      <!-- Add station -->
+      <div>
+        <div style="font-size:.84rem;font-weight:600;margin-bottom:.35rem;">Add a Station</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:.85rem;line-height:1.5">
+          Add a check-in station to a building. Each station gets its own log tab in the spreadsheet.
+        </div>
+        <div style="display:flex;gap:.55rem;flex-wrap:wrap;align-items:flex-end;">
+          <div style="flex:1;min-width:120px;">
+            <label class="form-label">Building</label>
+            <select class="form-input" id="newStationBuilding">
+              <option value="">— Select building —</option>
+            </select>
+          </div>
+          <div style="flex:2;min-width:150px;">
+            <label class="form-label">Station Name</label>
+            <input class="form-input" id="newStationName" placeholder="e.g. Library, Front Office, Gym">
+          </div>
+          <button class="btn btn-primary" onclick="addStation()" style="flex-shrink:0;align-self:flex-end">Add</button>
+        </div>
+        <div id="addStationResult" style="margin-top:.6rem;font-size:.78rem;color:var(--muted);"></div>
+      </div>
+      <!-- Station list -->
+      <div>
+        <div style="font-size:.84rem;font-weight:600;margin-bottom:.35rem;">Existing Stations</div>
+        <div id="allStationsList" style="max-height:180px;overflow-y:auto;">
+          <div class="empty-state" style="padding:1rem;font-size:.78rem">No stations yet — add one above.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+</div>
+
+
+<!-- ══ BARCODES PAGE ══ -->
+<div id="page-bc" class="page">
+  <div style="display:grid;grid-template-columns:280px 1fr;gap:1rem;align-items:start;min-width:0" id="bcLayout">
+
+    <!-- Left: filter + picker -->
+    <div style="max-height:90vh;overflow-y:auto;">
+      <div class="card" style="margin-bottom:.75rem">
+        <div class="card-title">Filter students</div>
+
+        <div class="field" id="bcBuildingField" style="display:none;margin-bottom:.65rem">
+          <label class="form-label">Building</label>
+          <select class="form-input" id="bcBuilding" onchange="loadBCStudents()"></select>
+        </div>
+
+        <div class="field" style="margin-bottom:.65rem">
+          <label class="form-label">Search</label>
+          <input class="form-input" type="text" id="bcSearch" placeholder="Name…" oninput="filterBC()">
+        </div>
+
+        <div style="display:flex;gap:.4rem;margin-bottom:.5rem">
+          <button class="btn btn-outline btn-sm" style="flex:1" onclick="bcSelectAll()">Select all</button>
+          <button class="btn btn-outline btn-sm" style="flex:1" onclick="bcClearAll()">Clear all</button>
+        </div>
+        <button class="btn btn-outline btn-sm" style="width:100%;margin-bottom:.5rem;color:#666;border-color:#ccc" onclick="openAddGuest()">+ Add Guest</button>
+
+        <div id="bcList" style="max-height:340px;overflow-y:auto;border:.5px solid var(--border);border-radius:7px">
+          <div class="empty-state" style="padding:1rem;font-size:.8rem">Loading…</div>
+        </div>
+        <div id="bcSelCount" style="font-size:.74rem;color:var(--muted);margin-top:.4rem;text-align:right"></div>
+      </div>
+
+      <!-- Items section -->
+      <div class="card" style="margin-bottom:.75rem">
+        <div class="card-title">Filter items</div>
+
+        <div class="field" style="margin-bottom:.65rem">
+          <label class="form-label">Search</label>
+          <input class="form-input" type="text" id="bcItemSearch" placeholder="Name or barcode…" oninput="filterBCItems()">
+        </div>
+
+        <div style="display:flex;gap:.4rem;margin-bottom:.5rem">
+          <button class="btn btn-outline btn-sm" style="flex:1" onclick="bcItemSelectAll()">Select all</button>
+          <button class="btn btn-outline btn-sm" style="flex:1" onclick="bcItemClearAll()">Clear all</button>
+        </div>
+
+        <div id="bcItemList" style="max-height:200px;overflow-y:auto;border:.5px solid var(--border);border-radius:7px">
+          <div class="empty-state" style="padding:1rem;font-size:.8rem">Loading…</div>
+        </div>
+        <div id="bcItemSelCount" style="font-size:.74rem;color:var(--muted);margin-top:.4rem;text-align:right"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Print settings</div>
+        <div style="margin-bottom:.65rem">
+          <label class="form-label">Bar height</label>
+          <select class="form-input" id="bcHeight">
+            <option value="48">Short</option>
+            <option value="64" selected>Medium</option>
+            <option value="80">Tall</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="buildBCSheet()" id="bcBuildBtn" disabled>
+          <i class="ti ti-layout-grid" aria-hidden="true"></i> Build sheet
+        </button>
+        <button class="btn btn-outline" style="width:100%;margin-top:.4rem" onclick="window.print()" id="bcPrintBtn" disabled>
+          <i class="ti ti-printer" aria-hidden="true"></i> Print
+        </button>
+        <div id="bcSheetCount" style="font-size:.74rem;color:var(--muted);margin-top:.4rem;text-align:center"></div>
+      </div>
+    </div>
+
+    <!-- Right: barcode sheet -->
+    <div class="card" id="bcSheetCard">
+      <div id="bcGrid" style="display:grid;gap:.5rem">
+        <div class="empty-state" style="grid-column:1/-1">
+          Select students on the left and click Build sheet
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ INVENTORY PAGE ══ -->
+<div id="page-inv" class="page">
+
+  <!-- Sub-nav -->
+  <div style="display:flex;gap:.4rem;margin-bottom:1.1rem;border-bottom:.5px solid var(--border);padding-bottom:.7rem">
+    <button class="btn btn-primary btn-sm" id="invSubItems"    onclick="invShowSub('items')"   >📋 Items</button>
+    <button class="btn btn-outline btn-sm" id="invSubCheckout" onclick="invShowSub('checkout')" >🔄 Checkout / Return</button>
+    <button class="btn btn-outline btn-sm" id="invSubOverdue"  onclick="invShowSub('overdue')"  >⚠️ Overdue <span id="overdueCountBadge" style="display:none" class="overdue-badge">0</span></button>
+    <button class="btn btn-outline btn-sm" id="invSubAlerts"   onclick="invShowSub('alerts')"   >🔔 Alerts</button>
+  </div>
+
+  <!-- ── Items sub-page ── -->
+  <div id="invPageItems">
+    <div class="card" style="margin-bottom:1rem">
+      <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+        <div id="invBuildingFieldItems" style="display:none">
+          <select class="form-input" id="invBuildingItems" onchange="loadInventory()" style="min-width:120px"></select>
+        </div>
+        <select class="form-input" id="invStationFilter" onchange="loadInventory()" style="min-width:150px">
+          <option value="">All stations</option>
+        </select>
+        <input class="form-input" type="text" id="invSearch" placeholder="Search items…" oninput="filterInventory()" style="flex:1;min-width:160px;max-width:260px">
+        <select class="form-input" id="invCatFilter" onchange="filterInventory()" style="min-width:130px">
+          <option value="">All categories</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="openAddItem()" style="margin-left:auto">+ Add Item</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Barcode</th>
+            <th>Name</th>
+            <th>Station</th>
+            <th>Category</th>
+            <th>Available</th>
+            <th>Total</th>
+            <th>Reorder</th>
+            <th>Default Due</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="invBody">
+          <tr><td colspan="9" class="empty-state">Loading inventory…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Checkout/Return sub-page ── -->
+  <div id="invPageCheckout" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start">
+
+      <!-- Scan panel -->
+      <div class="card">
+        <div class="card-title">Checkout / Return</div>
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:1rem;line-height:1.5">
+          Staff: scan a student barcode, then scan an item. Students: scan an item directly.
+        </div>
+
+        <div id="coStaffFields">
+          <label class="form-label">Student Barcode</label>
+          <div style="display:flex;gap:.5rem;margin-bottom:.75rem">
+            <input class="form-input" id="coStudentInput" placeholder="Scan or type student ID…"
+              autocomplete="off" spellcheck="false" style="flex:1">
+            <button class="btn btn-outline btn-sm" onclick="clearCoStudent()">✕</button>
+          </div>
+          <div id="coStudentPreview" style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem;min-height:1.2rem"></div>
+        </div>
+
+        <label class="form-label">Item Barcode</label>
+        <div style="display:flex;gap:.5rem;margin-bottom:.75rem">
+          <input class="form-input" id="coItemInput" placeholder="Scan or type item barcode…"
+            autocomplete="off" spellcheck="false" style="flex:1" onkeydown="if(event.key==='Enter')processCoScan()">
+          <button class="btn btn-primary btn-sm" onclick="processCoScan()">Go</button>
+        </div>
+
+        <!-- Override due date -->
+        <div id="coDueDateOverride" style="display:none;margin-bottom:.75rem">
+          <label class="form-label">Override Due Date <span style="font-weight:400;opacity:.6">(optional)</span></label>
+          <input class="form-input" type="date" id="coDueDate">
+        </div>
+
+        <div id="coResult" class="confirm-banner" style="margin-top:.5rem"></div>
+      </div>
+
+      <!-- Student's current checkouts -->
+      <div class="card">
+        <div class="card-title">Student's Current Checkouts</div>
+        <div id="coStudentCheckouts">
+          <div class="empty-state" style="padding:1rem;font-size:.8rem">Scan a student to see their items</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Alerts sub-page ── -->
+  <div id="invPageAlerts" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start">
+
+      <!-- Subscribe panel -->
+      <div class="card">
+        <div class="card-title">Email Notification Subscriptions</div>
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:1rem;line-height:1.5">
+          Receive an email when items hit their reorder point or have overdue checkouts.
+          You can subscribe to multiple stations.
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem">
+          <div>
+            <label class="form-label">Building</label>
+            <select class="form-input" id="alertBuilding" onchange="loadAlertStations()">
+              <option value="">— Select —</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Station</label>
+            <select class="form-input" id="alertStation">
+              <option value="">— Select building first —</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:1rem;margin-bottom:.75rem">
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.83rem;cursor:pointer">
+            <input type="checkbox" id="alertNotifyReorder" checked> Reorder alerts
+          </label>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.83rem;cursor:pointer">
+            <input type="checkbox" id="alertNotifyOverdue" checked> Overdue alerts
+          </label>
+        </div>
+
+        <button class="btn btn-primary btn-sm" onclick="saveAlertSub()" style="width:100%">
+          + Subscribe
+        </button>
+        <div id="alertSubResult" style="margin-top:.5rem;font-size:.78rem;color:var(--muted)"></div>
+      </div>
+
+      <!-- Current subscriptions -->
+      <div class="card">
+        <div class="card-title">My Subscriptions</div>
+        <div id="myAlertsList">
+          <div class="empty-state" style="padding:1rem;font-size:.8rem">Loading…</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Overdue sub-page ── -->
+  <div id="invPageOverdue" style="display:none">
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;flex-wrap:wrap">
+        <div style="font-size:.85rem;font-weight:600;color:#991B1B">Overdue Items</div>
+        <input class="form-input" type="text" id="overdueSearch" placeholder="Search…" oninput="filterOverdue()"
+          style="max-width:240px;margin-left:auto">
+      </div>
+      <table>
+        <thead>
+          <tr><th>Student</th><th>Item</th><th>Due Date</th><th>Days Overdue</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="overdueBody">
+          <tr><td colspan="5" class="empty-state">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Add / Edit Item Modal ── -->
+<div class="modal-overlay" id="itemModal">
+  <div class="modal">
+    <div class="modal-title" id="itemModalTitle">Add Item</div>
+
+    <div class="form-row">
+      <label class="form-label">Name *</label>
+      <input class="form-input" id="iName" placeholder="e.g. Chromebook, Calculator, Library Book">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Category</label>
+      <input class="form-input" id="iCategory" placeholder="e.g. Technology, Books, Sports Equipment">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Description</label>
+      <input class="form-input" id="iDescription" placeholder="Optional details">
+    </div>
+    <div class="form-row" id="iBuildingRow">
+      <label class="form-label">Building *</label>
+      <select class="form-input" id="iBuilding"></select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Station</label>
+      <select class="form-input" id="iStation" onchange=""></select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Total Quantity</label>
+      <input class="form-input" type="number" id="iQty" value="1" min="1">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Reorder Point <span style="font-weight:400;opacity:.6">(alert when available ≤ this)</span></label>
+      <input class="form-input" type="number" id="iReorderPoint" value="0" min="0" placeholder="0 = no alert">
+    </div>
+
+    <!-- Due date length -->
+    <div class="form-row">
+      <label class="form-label">Default Checkout Duration</label>
+      <label style="display:flex;align-items:center;gap:.4rem;margin-bottom:.5rem;font-size:.83rem;cursor:pointer">
+        <input type="checkbox" id="iNoDueDate" onchange="toggleNoDueDate()"> No due date (consumable)
+      </label>
+      <div style="display:flex;gap:.5rem;align-items:center" id="iDueDuration">
+        <input class="form-input" type="number" id="iDueDays" value="14" min="1" style="width:80px">
+        <select class="form-input" id="iDueUnit" style="width:130px" onchange="syncDueDays()">
+          <option value="days">Days</option>
+          <option value="weeks">Weeks</option>
+          <option value="months">Months</option>
+        </select>
+        <span style="font-size:.78rem;color:var(--muted)" id="iDuePreview">= 14 days</span>
+      </div>
+    </div>
+
+    <!-- Barcode section -->
+    <div id="iBarcodeSection" class="form-row">
+      <label class="form-label">Barcode</label>
+      <div style="display:flex;gap:.5rem;align-items:center">
+        <input class="form-input" id="iBarcode" placeholder="Scan existing barcode, or leave blank to generate">
+        <button class="btn btn-outline btn-sm" onclick="generateItemBarcode()" style="white-space:nowrap">Generate ID</button>
+      </div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:.25rem">Scan an existing barcode on the item, or click Generate to create an ITEM- ID.</div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeItemModal()">Cancel</button>
+      <button class="btn btn-primary" id="itemModalSave" onclick="saveItem()">Add Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Due Date Modal ── -->
+<div class="modal-overlay" id="dueDateModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-title">Change Due Date</div>
+    <div style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem" id="ddStudentLabel"></div>
+    <div class="form-row">
+      <label class="form-label">New Due Date</label>
+      <input class="form-input" type="date" id="ddNewDate">
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeDueDateModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveDueDate()">Save</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── Adjust Inventory Qty Modal ── -->
+<div class="modal-overlay" id="adjModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title">Adjust Quantity</div>
+    <div id="adjItemLabel" style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem"></div>
+
+    <div class="form-row">
+      <label class="form-label">Reason</label>
+      <select class="form-input" id="adjReason">
+        <option value="Lost">Lost</option>
+        <option value="Stolen">Stolen</option>
+        <option value="Broken">Broken / Damaged</option>
+        <option value="Found">Found / Recovered</option>
+        <option value="Restocked">Restocked</option>
+        <option value="Audit">Audit Correction</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Quantity Change</label>
+      <div style="display:flex;align-items:center;gap:.6rem">
+        <button class="btn btn-outline" style="width:36px;padding:0;font-size:1.2rem" onclick="adjStep(-1)">−</button>
+        <input class="form-input" type="number" id="adjDelta" value="-1" style="width:80px;text-align:center">
+        <button class="btn btn-outline" style="width:36px;padding:0;font-size:1.2rem" onclick="adjStep(1)">+</button>
+        <span style="font-size:.82rem;color:var(--muted)" id="adjNewQtyPreview"></span>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Notes <span style="font-weight:400;opacity:.6">(optional)</span></label>
+      <input class="form-input" id="adjNotes" placeholder="e.g. Serial number, incident details…">
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeAdjModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAdj()">Save Adjustment</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── Custom confirm modal (replaces blocked browser confirm()) ── -->
+<div class="modal-overlay" id="appConfirmModal" style="z-index:10000">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-title" id="appConfirmTitle">Confirm</div>
+    <div id="appConfirmMsg" style="font-size:.9rem;color:#444;margin-bottom:1.2rem;line-height:1.5"></div>
+    <div class="form-actions">
+      <button class="btn btn-outline" id="appConfirmCancel" onclick="appConfirmModal(false)">Cancel</button>
+      <button class="btn btn-primary" id="appConfirmOK" onclick="appConfirmModal(true)">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADD GUEST MODAL ══ -->
+<div class="modal-overlay" id="guestModal">
+  <div class="modal">
+    <div class="modal-title">Add Guest Student</div>
+    <div style="font-size:.8rem;color:var(--muted);margin-bottom:1rem;line-height:1.5;background:var(--surface);padding:.7rem .85rem;border-radius:7px;">
+      For visitors, shadow students, or anyone without an MPS account. A unique
+      <strong>GUEST-</strong> barcode ID is generated automatically -- it can never
+      conflict with a real student number.
+    </div>
+    <div class="form-row">
+      <label class="form-label">Full Name *</label>
+      <input class="form-input" id="gName" placeholder="First Last" autocomplete="off">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Note <span style="font-weight:400;opacity:.6">(optional -- e.g. "Shadowing", "Field trip")</span></label>
+      <input class="form-input" id="gNote" placeholder="e.g. Shadowing, Job shadow, Visitor">
+    </div>
+    <div class="form-row" id="gBuildingRow">
+      <label class="form-label">Building *</label>
+      <select class="form-input" id="gBuilding">
+        <option value="">— Select building —</option>
+      </select>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeGuestModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveGuest()">Add Guest &amp; Generate ID</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ GUEST ID RESULT MODAL ══ -->
+<div class="modal-overlay" id="guestResultModal">
+  <div class="modal" style="text-align:center">
+    <div style="font-size:1rem;font-weight:600;margin-bottom:.5rem">Guest Added</div>
+    <div style="font-size:.85rem;color:var(--muted);margin-bottom:1.25rem" id="gResultName"></div>
+    <div style="background:var(--black);border-radius:10px;padding:1.5rem;margin-bottom:1.25rem">
+      <div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:.6rem">Barcode ID</div>
+      <div style="font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#fff;letter-spacing:.08em" id="gResultId"></div>
+      <div style="font-size:.72rem;color:rgba(255,255,255,.35);margin-top:.5rem">Write or print this on a temporary ID badge</div>
+    </div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:1.25rem">
+      This guest is now in the Students list and can be scanned at any station.
+      Remove them from the Students tab when their visit is complete.
+    </div>
+    <div class="form-actions" style="justify-content:center">
+      <button class="btn btn-outline" onclick="closeGuestResultModal()">Done</button>
+      <button class="btn btn-primary" onclick="printGuestId()">
+        <i class="ti ti-printer" aria-hidden="true"></i> Print / Copy ID
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+// ══ State ══════════════════════════════════════════════════════
+let currentRole      = 'student';
+let currentBuilding  = null;    // user's own building or 'district'
+let selectedBuilding = null;    // currently viewed building
+let selectedStation       = null;  // currently selected station key (staff/kiosk)
+let selectedStudentStation = null; // station selected on student kiosk
+let selectedStudentBuilding = null; // building for student kiosk station
+let selectedLogStation    = null;  // station selected in Log tab
+
+let BUILDINGS    = [];
+let allOUs       = [];
+let allStudents  = [];
+let allLog       = [];
+let allStations  = [];          // all stations for selectedBuilding
+
+let _dateRangeFetched = false;
+let _scanInFlight     = false;
+const _confirmTimers  = { staff: null, student: null, kiosk: null };
+
+// ══ Boot ═══════════════════════════════════════════════════════
+// Script is at bottom of body -- DOM is ready. Run boot directly.
+// Apps Script iframes can suppress window.load so we avoid it entirely.
+(function boot() {
+  if (typeof google === 'undefined' || !google.script || !google.script.run) {
+    document.getElementById('loadingOverlay').innerHTML =
+      '<p style="color:#f87171;font-size:.9rem">Error: google.script.run unavailable. Open via the Apps Script web app URL.</p>';
+    return;
+  }
+
+  const _bootTimeout = setTimeout(() => {
+    document.getElementById('loadingOverlay').innerHTML =
+      '<p style="color:#f87171;font-size:.9rem">Timeout: server did not respond.<br>' +
+      '<span style="font-size:.78rem;opacity:.7">Check Execution log in Apps Script editor for errors.<br>' +
+      'Confirm the deployment is set to Execute as: Me and access: Domain.</span></p>';
+  }, 8000);
+
+  google.script.run
+    .withSuccessHandler(user => {
+      clearTimeout(_bootTimeout);
+      try {
+      currentRole     = user.role;
+      currentBuilding = user.building;
+      if (user.buildings && user.buildings.length) BUILDINGS = user.buildings;
+
+      document.getElementById('userEmail').textContent = user.email;
+      const badge = document.getElementById('roleBadge');
+      if (user.building === 'district') {
+        badge.textContent = 'district'; badge.className = 'rbadge rb-district';
+      } else if (user.role === 'kiosk') {
+        badge.textContent = 'kiosk'; badge.className = 'rbadge rb-staff';
+      } else {
+        badge.textContent = user.role; badge.className = 'rbadge rb-' + user.role;
+      }
+      document.getElementById('userChip').style.display = 'flex';
+
+      if (user.role === 'kiosk') {
+        // Kiosk account: scan + count only, no nav, no student names
+        selectedBuilding = user.building;
+        document.getElementById('kioskScanLayout').style.display = 'block';
+        loadStations(selectedBuilding, true); // true = populate kiosk selector
+        setInterval(loadKioskDashboard, 30000);
+
+      } else if (user.role === 'staff') {
+        document.getElementById('staffNav').style.display       = 'flex';
+        document.getElementById('staffScanLayout').style.display = 'grid';
+
+        if (user.building === 'district') {
+          // District staff: building selector in header
+          if (user.buildings && user.buildings.length) BUILDINGS = user.buildings;
+          selectedBuilding = BUILDINGS[0] || null;
+          const hdrSel = document.getElementById('hdrSelectors');
+          hdrSel.style.display = 'flex';
+          const bSel = document.getElementById('buildingSelect');
+          bSel.innerHTML = BUILDINGS.map(b => `<option value="${b}">${b}</option>`).join('');
+          bSel.value = selectedBuilding;
+
+          // Populate building dropdowns in admin station management
+          document.getElementById('newStationBuilding').innerHTML =
+            '<option value="">- Select building -</option>' +
+            BUILDINGS.map(b => `<option value="${b}">${b}</option>`).join('');
+
+        } else {
+          selectedBuilding = user.building;
+        }
+
+        // Disable Import Students for non-district
+        if (user.building !== 'district') {
+          const btn  = document.getElementById('btnImportStudents');
+          const sel  = document.getElementById('importOuSelect');
+          const note = document.getElementById('importStudentsNote');
+          btn.disabled = true; btn.style.opacity = '.4'; btn.style.cursor = 'not-allowed';
+          sel.disabled = true; sel.style.opacity = '.4';
+          if (note) note.textContent = 'District admin only.';
+          // Hide station management for non-district
+          document.getElementById('stationMgmtCard').style.display = 'none';
+        }
+
+        document.getElementById('bcTab').style.display = 'inline-flex';
+        document.getElementById('invTab').style.display = 'inline-flex';
+        loadStations(selectedBuilding);
+        loadAdminOUList();
+        setInterval(loadDashboard, 30000);
+        loadOverdueCount();
+      } else {
+        // Student: read-only view — history only, no scanning, no editing
+        document.getElementById('studentScanLayout').style.display = 'block';
+        loadMyHistory();
+        loadMyItemCheckouts();
+      }
+
+      document.getElementById('loadingOverlay').classList.add('hidden');
+      // Init barcode listeners now that DOM is guaranteed ready
+      _initStaffInput();
+      _initKioskInput();
+      _initKioskCoInputs();
+        } catch (innerErr) {
+          document.getElementById('loadingOverlay').innerHTML =
+            '<p style="color:#f87171;font-size:.9rem">Boot error: ' + (innerErr.message || innerErr) + '</p>';
+        }
+      })
+      .withFailureHandler(err => {
+      document.getElementById('loadingOverlay').innerHTML =
+        `<p style="color:#f87171;font-size:.9rem">Could not verify account: ${esc(err.message)}</p>`;
+    })
+      .getCurrentUser();
+})();
+
+// ══ Building change (district staff) ═══════════════════════════
+function onBuildingChange() {
+  selectedBuilding  = document.getElementById('buildingSelect').value;
+  selectedStation   = null;
+  selectedLogStation = null;
+  allLog = []; allStudents = [];
+  _dateRangeFetched = false;
+
+  // Reset station dropdown
+  const staSel = document.getElementById('stationSelect');
+  staSel.innerHTML = '<option value="">- Select station -</option>';
+  staSel.classList.add('unset');
+  document.getElementById('scanHeroLabel').textContent = 'Select a station to begin';
+  document.getElementById('barcodeInput').disabled = true;
+  document.getElementById('scanHint').className = 'no-station-hint';
+  document.getElementById('scanHint').textContent = 'Select a station above to enable scanning';
+
+  loadStations(selectedBuilding);
+
+  // Reset BC tab so it reloads for the new building
+  _bcLoaded = false;
+  _bcAll = []; _bcFiltered = []; _bcSelected.clear();
+  _bcItemAll = []; _bcItemFiltered = []; _bcItemSelected.clear();
+  _invLoaded = false;
+  _invAll = []; _invFiltered = [];
+  // Sync inv building selector with header
+  var invBSel = document.getElementById('invBuildingItems');
+  if (invBSel) invBSel.value = selectedBuilding;
+  const bcBldSel = document.getElementById('bcBuilding');
+  if (bcBldSel) bcBldSel.value = selectedBuilding;
+
+  const activePage = document.querySelector('.page.active')?.id;
+  if (activePage === 'page-log')      { populateLogStationSelect(); }
+  if (activePage === 'page-students') loadStudents();
+  if (activePage === 'page-bc')       { loadBCStudents(); }
+  loadDashboard();
+}
+
+// ══ Station management ══════════════════════════════════════════
+function loadStations(building, isKioskMode) {
+  if (!building) return;
+  google.script.run
+    .withSuccessHandler(stations => {
+      allStations = stations;
+      if (isKioskMode) {
+        populateKioskStationSelect(stations);
+      } else {
+        populateScanStationSelect(stations);
+        populateLogStationSelect();
+        if (currentBuilding === 'district') renderAllStationsList();
+      }
+    })
+    .withFailureHandler(() => {})
+    .getStations(building);
+}
+
+function populateKioskStationSelect(stations) {
+  const sel = document.getElementById('stationSelectKiosk');
+  sel.innerHTML = '<option value="">- Select station -</option>' +
+    stations.map(s => `<option value="${esc(s.key)}">${esc(s.name)}</option>`).join('');
+  sel.value = '';
+  sel.classList.add('unset');
+}
+
+function populateScanStationSelect(stations) {
+  const sel = document.getElementById('stationSelect');
+  sel.innerHTML = '<option value="">- Select station -</option>' +
+    stations.map(s => `<option value="${esc(s.key)}">${esc(s.name)}</option>`).join('');
+  sel.value = '';
+  sel.classList.add('unset');
+}
+
+function populateLogStationSelect() {
+  const sel = document.getElementById('logStationSelect');
+  sel.innerHTML = '<option value="">- Select station -</option>' +
+    allStations.map(s => `<option value="${esc(s.key)}">${esc(s.name)}</option>`).join('');
+  if (selectedLogStation) sel.value = selectedLogStation;
+}
+
+// ── Student kiosk station ──────────────────────────────────────
+function loadStudentStations() { /* students are read-only */ }
+
+function onStudentStationChange() { /* students are read-only */ }
+
+function onKioskStationChange() {
+  const sel = document.getElementById('stationSelectKiosk');
+  selectedStation = sel.value || null;
+  const barcode = document.getElementById('barcodeInputKiosk');
+  const hint    = document.getElementById('kioskScanHint');
+  const label   = document.getElementById('kioskHeroLabel');
+
+  if (selectedStation) {
+    sel.classList.remove('unset');
+    const stName = allStations.find(s => s.key === selectedStation)?.name || selectedStation;
+    label.textContent  = 'Ready to scan - ' + stName;
+    barcode.disabled   = false;
+    hint.className     = 'scan-hint';
+    hint.textContent   = 'Barcode scanner acts as keyboard input - just scan to submit';
+    focusKioskInput();
+    loadKioskDashboard();
+  } else {
+    sel.classList.add('unset');
+    label.textContent  = 'Select a station to begin';
+    barcode.disabled   = true;
+    hint.className     = 'no-station-hint';
+    hint.textContent   = 'Select a station above to enable scanning';
+  }
+}
+
+function loadKioskDashboard() {
+  if (!selectedBuilding || !selectedStation) return;
+  google.script.run
+    .withSuccessHandler(stats => {
+      const count = stats.currentlyIn;
+      document.getElementById('kioskCount').textContent = count;
+      document.getElementById('kioskCountLabel').textContent =
+        count === 1 ? 'student currently checked in' : 'students currently checked in';
+    })
+    .withFailureHandler(() => {})
+    .getDashboardStats(selectedBuilding, selectedStation);
+}
+
+// Kiosk barcode input
+// Barcode inputs -- attached inside load event to guarantee DOM is ready
+let barcodeInputKiosk = null;
+function focusKioskInput() {
+  barcodeInputKiosk = barcodeInputKiosk || document.getElementById('barcodeInputKiosk');
+  setTimeout(() => barcodeInputKiosk && !barcodeInputKiosk.disabled && barcodeInputKiosk.focus(), 100);
+}
+function _initKioskInput() {
+  barcodeInputKiosk = document.getElementById('barcodeInputKiosk');
+  if (!barcodeInputKiosk) return;
+  barcodeInputKiosk.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const val = barcodeInputKiosk.value.trim(); barcodeInputKiosk.value = '';
+      if (val) processBarcode(val, false, true);
+    }
+  });
+  const layout = document.getElementById('kioskScanLayout');
+  if (layout) layout.addEventListener('click', e => {
+    if (!e.target.closest('button,select,input')) focusKioskInput();
+  });
+}
+
+function onStationChange() {
+  const sel = document.getElementById('stationSelect');
+  selectedStation = sel.value || null;
+
+  const barcode  = document.getElementById('barcodeInput');
+  const hint     = document.getElementById('scanHint');
+  const heroLabel = document.getElementById('scanHeroLabel');
+
+  if (selectedStation) {
+    sel.classList.remove('unset');
+    const stationName = allStations.find(s => s.key === selectedStation)?.name || selectedStation;
+    heroLabel.textContent = 'Ready to scan -- ' + stationName;
+    barcode.disabled = false;
+    hint.className   = 'scan-hint';
+    hint.textContent = 'Barcode scanner acts as keyboard input -- just scan to submit';
+    focusStaffInput();
+    loadDashboard();
+  } else {
+    sel.classList.add('unset');
+    heroLabel.textContent  = 'Select a station to begin';
+    barcode.disabled = true;
+    hint.className   = 'no-station-hint';
+    hint.textContent = 'Select a station above to enable scanning';
+  }
+}
+
+function onLogStationChange() {
+  selectedLogStation = document.getElementById('logStationSelect').value || null;
+  _dateRangeFetched  = false;
+  updateLogLabel();
+  if (selectedLogStation) { initDatePicker(); loadLog(); }
+}
+
+function updateLogLabel() {
+  const stationName = allStations.find(s => s.key === selectedLogStation)?.name || selectedLogStation || '';
+  document.getElementById('logLabel').textContent =
+    (selectedBuilding || '') + (stationName ? ' -- ' + stationName : '');
+}
+
+// Admin: add station
+function addStation() {
+  const building = document.getElementById('newStationBuilding').value;
+  const name     = document.getElementById('newStationName').value.trim();
+  const res      = document.getElementById('addStationResult');
+  if (!building || !name) { toast('Building and station name are required', 'error'); return; }
+  google.script.run
+    .withSuccessHandler(r => {
+      if (r.success) {
+        toast('Station "' + r.station.name + '" added to ' + r.station.building, 'success');
+        res.textContent = '';
+        document.getElementById('newStationName').value = '';
+        loadAllStationsAdmin();
+        if (r.station.building === selectedBuilding) loadStations(selectedBuilding);
+      } else {
+        res.textContent = r.message;
+        toast(r.message, 'error');
+      }
+    })
+    .withFailureHandler(err => toast(err.message, 'error'))
+    .addStation(building, name);
+}
+
+function removeStation(building, key, name) {
+  appConfirm('Remove station "' + name + '" from ' + building + '? The log tab is kept — data is preserved.', function() {
+  google.script.run
+    .withSuccessHandler(r => {
+      if (r.success) {
+        toast('Station removed', 'success');
+        loadAllStationsAdmin();
+        if (building === selectedBuilding) loadStations(selectedBuilding);
+      } else {
+        toast(r.message, 'error');
+      }
+    })
+    .withFailureHandler(err => toast(err.message, 'error'))
+    .removeStation(building, key);
+  }, 'Remove Station');
+}
+
+function loadAllStationsAdmin() {
+  // Load stations for ALL buildings for the admin view
+  google.script.run
+    .withSuccessHandler(stations => { renderAllStationsList(stations); })
+    .withFailureHandler(() => {})
+    .getStations(null); // null = all buildings (district only)
+}
+
+function renderAllStationsList(stations) {
+  const list = document.getElementById('allStationsList');
+  if (!stations || !stations.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:.78rem">No stations yet -- add one above.</div>';
+    return;
+  }
+  list.innerHTML = stations.map(s => `
+    <div class="station-item">
+      <span>
+        <span class="station-bldg-tag">${esc(s.building)}</span>
+        <span style="font-weight:500">${esc(s.name)}</span>
+        <span style="color:var(--muted);font-size:.72rem;margin-left:.35rem">(${esc(s.key)})</span>
+      </span>
+      <button class="btn-icon" onclick="removeStation('${esc(s.building)}','${esc(s.key)}','${esc(s.name)}')" title="Remove station">🗑️</button>
+    </div>`).join('');
+}
+
+// ══ Navigation ══════════════════════════════════════════════════
+// ══ Utilities ═══════════════════════════════════════════════════
+function esc(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, type) {
+  type = type || 'info';
+  const icons = { success:'✓', error:'✗', info:'i' };
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.innerHTML = '<span>' + (icons[type]||'·') + '</span><span>' + esc(msg) + '</span>';
+  document.getElementById('toastWrap').appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+
+// ══ Admin functions ══════════════════════════════════════════════
+function initSheets() {
+  const btn = document.getElementById('btnInitSheets');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Setting up…';
+  document.getElementById('initResult').textContent = 'Creating sheets, installing trigger, and syncing students from Google — this may take a minute…';
+  google.script.run
+    .withSuccessHandler(() => {
+      btn.disabled = false;
+      btn.textContent = 'Initialize & Sync';
+      toast('Setup complete — sheets created, trigger installed, students synced', 'success');
+      document.getElementById('initResult').textContent = 'Done. Students are imported and the nightly sync is active.';
+      loadStudents();
+    })
+    .withFailureHandler(err => {
+      btn.disabled = false;
+      btn.textContent = 'Initialize & Sync';
+      document.getElementById('initResult').textContent = 'Error: ' + (err.message || err);
+      toast(err.message || 'Setup failed', 'error');
+    })
+    .initializeSheets();
+}
+
+function importOUs() {
+  const btn = document.getElementById('btnImportOUs');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Importing…';
+  google.script.run
+    .withSuccessHandler(res => {
+      btn.disabled = false; btn.textContent = 'Import OUs from Google Admin';
+      if (res.success) {
+        toast('OUs imported: ' + res.count + ' OUs loaded', 'success');
+        loadAdminOUList();
+      } else { toast(res.message || 'Import failed', 'error'); }
+    })
+    .withFailureHandler(err => { btn.disabled = false; btn.textContent = 'Import OUs from Google Admin'; toast(err.message, 'error'); })
+    .importOUs();
+}
+
+function importStudents() {
+  const btn = document.getElementById('btnImportStudents');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Syncing…';
+  const ouPath = document.getElementById('importOuSelect').value;
+  google.script.run
+    .withSuccessHandler(res => {
+      btn.disabled = false; btn.textContent = 'Re-sync Now';
+      document.getElementById('stuImportResult').textContent = res.message || '';
+      if (res.success) { toast('Students synced', 'success'); }
+      else { toast(res.message || 'Sync failed', 'error'); }
+    })
+    .withFailureHandler(err => { btn.disabled = false; btn.textContent = 'Re-sync Now'; toast(err.message, 'error'); })
+    .importStudentsFromAdmin(ouPath || null);
+}
+
+function loadAdminOUList() {
+  google.script.run
+    .withSuccessHandler(ous => {
+      allOUs = ous;
+      populateOUSelect('importOuSelect');
+      const preview = document.getElementById('ouListPreview');
+      if (!preview) return;
+      if (!ous.length) { preview.textContent = 'No OUs loaded — click Import OUs first.'; return; }
+      preview.innerHTML = ous.map(ou =>
+        `<div style="padding:.2rem 0;font-size:.74rem;border-bottom:.5px solid var(--border)">`+
+        `<span style="font-weight:500">${esc(ou.name)}</span> `+
+        `<span style="opacity:.5">${esc(ou.path)}</span></div>`
+      ).join('');
+    })
+    .withFailureHandler(() => {})
+    .getOUs();
+}
+
+function populateOUSelect(selectId, selectedPath) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const isImport = selectId === 'importOuSelect';
+  if (!allOUs.length) { sel.innerHTML = `<option value="">${isImport ? 'All OUs' : 'No OUs loaded'}</option>`; return; }
+  sel.innerHTML = `<option value="">${isImport ? 'All OUs' : '- Select OU -'}</option>` +
+    allOUs.map(ou => `<option value="${esc(ou.path)}" ${ou.path===selectedPath?'selected':''}>${esc(ou.name)} (${esc(ou.path)})</option>`).join('');
+}
+
+
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.ntab').forEach(t => t.classList.remove('a'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (btn) btn.classList.add('a');
+  if (name === 'log')      { populateLogStationSelect(); initDatePicker(); if (selectedLogStation) loadLog(); }
+  if (name === 'students') { populateStuStationSelect(); loadStudents(); }
+  if (name === 'scan')     { focusStaffInput(); if (selectedStation) loadDashboard(); }
+  if (name === 'admin')    { loadAdminOUList(); if (currentBuilding === 'district') loadAllStationsAdmin(); }
+  if (name === 'bc')       { initBCPage(); }
+  if (name === 'inv')      { initInvPage(); }
+}
+
+// ══ Barcode -- staff ════════════════════════════════════════════
+let barcodeInput = null;
+function focusStaffInput() {
+  barcodeInput = barcodeInput || document.getElementById('barcodeInput');
+  setTimeout(() => barcodeInput && !barcodeInput.disabled && barcodeInput.focus(), 100);
+}
+function _initStaffInput() {
+  barcodeInput = document.getElementById('barcodeInput');
+  if (!barcodeInput) return;
+  barcodeInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const val = barcodeInput.value.trim(); barcodeInput.value = '';
+      if (val) processBarcode(val, false);
+    }
+  });
+  const scanPage = document.getElementById('page-scan');
+  if (scanPage) scanPage.addEventListener('click', e => {
+    if (currentRole === 'staff' && !e.target.closest('button,select,input')) focusStaffInput();
+  });
+}
+
+// ══ Barcode -- student ══════════════════════════════════════════
+let barcodeInputStudent = null;
+function focusStudentInput() {
+  barcodeInputStudent = barcodeInputStudent || document.getElementById('barcodeInputStudent');
+  setTimeout(() => barcodeInputStudent && barcodeInputStudent.focus(), 100);
+}
+function _initStudentInput() {
+  barcodeInputStudent = document.getElementById('barcodeInputStudent');
+  if (!barcodeInputStudent) return;
+  barcodeInputStudent.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const val = barcodeInputStudent.value.trim(); barcodeInputStudent.value = '';
+      if (!val) return;
+      if (!selectedStudentStation) { toast('Please select a station first', 'error'); return; }
+      processBarcode(val, true);
+    }
+  });
+}
+
+// ══ Scan handler ════════════════════════════════════════════════
+function processBarcode(barcode, isStudent, isKiosk) {
+  if (_scanInFlight) return;
+  if (!isStudent && !selectedStation) {
+    toast('Please select a station before scanning', 'error'); return;
+  }
+  _scanInFlight = true;
+
+  const refocus = isStudent ? focusStudentInput
+                : isKiosk   ? focusKioskInput
+                :              focusStaffInput;
+
+  google.script.run
+    .withSuccessHandler(res => {
+      _scanInFlight = false;
+      showConfirmation(res, isStudent, isKiosk);
+      if (isStudent)     { loadMyHistory(); focusStudentInput(); }
+      else if (isKiosk)  { loadKioskDashboard(); focusKioskInput(); }
+      else               { loadDashboard(); focusStaffInput(); }
+    })
+    .withFailureHandler(err => {
+      _scanInFlight = false;
+      toast(err.message || 'Error', 'error');
+      refocus();
+    })
+    .checkInOut(
+      barcode,
+      isStudent ? selectedStudentBuilding : selectedBuilding,
+      isStudent ? selectedStudentStation  : selectedStation
+    );
+}
+
+function showConfirmation(res, isStudent, isKiosk) {
+  const sfx    = isStudent ? 'Student' : isKiosk ? 'Kiosk' : '';
+  const banner = document.getElementById('confirmBanner' + sfx);
+  const icon   = document.getElementById('confirmIcon' + sfx);
+  const name   = document.getElementById('confirmName' + sfx);
+  const meta   = document.getElementById('confirmMeta' + sfx);
+  const badge  = document.getElementById('confirmBadge' + sfx);
+  banner.classList.remove('visible','in','out','err');
+  if (res.success) {
+    const isIn = res.action === 'IN';
+    banner.classList.add(isIn ? 'in' : 'out');
+    icon.textContent  = isIn ? '✓' : '↩';
+    name.textContent  = res.student.name;
+    const stationLabel = res.station ? res.station.replace(/_/g, ' ') : '';
+    meta.textContent  = isStudent
+      ? (stationLabel ? stationLabel + ' · ' : '') + res.timestamp
+      : (stationLabel ? stationLabel + ' · ' : '') + res.timestamp;
+    badge.textContent = isIn ? 'CHECKED IN' : 'CHECKED OUT';
+  } else {
+    banner.classList.add('err');
+    icon.textContent  = '!';
+    name.textContent  = 'Not found';
+    meta.textContent  = res.message;
+    badge.textContent = '';
+  }
+  void banner.offsetWidth;
+  banner.classList.add('visible');
+  const tk = isStudent ? 'student' : isKiosk ? 'kiosk' : 'staff';
+  clearTimeout(_confirmTimers[tk]);
+  _confirmTimers[tk] = setTimeout(() => banner.classList.remove('visible'), 6000);
+}
+
+// ══ Student history ════════════════════════════════════════════
+function loadMyHistory() {
+  google.script.run
+    .withSuccessHandler(entries => {
+      const list = document.getElementById('myHistoryList');
+      if (!entries.length) {
+        list.innerHTML = '<div class="empty-state" style="padding:1rem">No activity yet.</div>';
+        return;
+      }
+      list.innerHTML = entries.map(e => `
+        <div class="history-item">
+          <span class="badge badge-${e.action.toLowerCase()}">${e.action}</span>
+          ${e.station ? `<span style="font-size:.78rem;color:var(--accent);font-weight:500">${esc(e.station)}</span>` : ''}
+          <span style="color:var(--muted);font-size:.77rem">${esc(e.timestamp)}</span>
+        </div>`).join('');
+    })
+    .withFailureHandler(() => {
+      const list = document.getElementById('myHistoryList');
+      if (list) list.innerHTML = '<div class="empty-state" style="padding:1rem">Could not load history.</div>';
+    })
+    .getMyOwnHistory();
+}
+
+// ══ Dashboard ══════════════════════════════════════════════════
+function loadDashboard() {
+  if (!selectedBuilding || !selectedStation) return;
+  google.script.run
+    .withSuccessHandler(stats => {
+      const stationName = allStations.find(s => s.key === stats.stationKey)?.name || stats.stationKey || '';
+      document.getElementById('dashTitle').textContent =
+        'Today -- ' + stats.building + (stationName ? ' / ' + stationName : '');
+      document.getElementById('statIn').textContent    = stats.currentlyIn;
+      document.getElementById('statTotal').textContent = stats.totalEntries;
+      const list = document.getElementById('presentList');
+      if (!stats.checkedIn.length) {
+        list.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:.78rem">No students checked in</div>';
+        return;
+      }
+      list.innerHTML = stats.checkedIn.map(s => {
+        var sid = s.studentId || s.id || '';
+        var nm  = s.name || sid;
+        var btn = document.createElement('button');
+      btn.textContent = '🔴';
+      btn.dataset.sid = sid;
+      btn.dataset.nm  = nm;
+      btn.title = 'Force check out';
+      btn.setAttribute('onclick','forceDashOut(this.dataset.sid,this.dataset.nm)');
+      btn.style.cssText = 'flex-shrink:0;border:none;background:none;cursor:pointer;font-size:.95rem;padding:0;line-height:1;opacity:.55;transition:opacity .15s';
+      btn.onmouseenter = function(){ this.style.opacity='1'; };
+      btn.onmouseleave = function(){ this.style.opacity='.55'; };
+      var row = document.createElement('div');
+      row.className = 'present-item';
+      row.style.gap = '.4rem';
+      row.innerHTML = '<div class="dot"></div>' +
+        '<div class="present-name" style="flex:1">' + esc(nm) + '</div>' +
+        '<span style="font-size:.68rem;font-weight:700;color:#166534;background:rgba(34,197,94,0.12);border-radius:4px;padding:.1rem .35rem;flex-shrink:0">IN</span>';
+      row.appendChild(btn);
+      return row.outerHTML;
+      }).join('');
+    })
+    .withFailureHandler(() => {})
+    .getDashboardStats(selectedBuilding, selectedStation);
+}
+
+// ══ Log ════════════════════════════════════════════════════════
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
+
+function initDatePicker() {
+  const picker = document.getElementById('logDate');
+  if (!picker.value) picker.value = todayStr();
+  if (_dateRangeFetched || !selectedLogStation) return;
+  _dateRangeFetched = true;
+  google.script.run
+    .withSuccessHandler(range => {
+      if (range.min) picker.min = range.min;
+      picker.max = todayStr();
+    })
+    .withFailureHandler(() => {})
+    .getLogDateRange(selectedBuilding, selectedLogStation);
+}
+
+function goToToday() { document.getElementById('logDate').value = todayStr(); loadLog(); }
+
+function changeDate(delta) {
+  const picker  = document.getElementById('logDate');
+  const current = picker.value ? new Date(picker.value + 'T00:00:00') : new Date();
+  current.setDate(current.getDate() + delta);
+  picker.value = current.getFullYear() + '-' +
+    String(current.getMonth() + 1).padStart(2,'0') + '-' +
+    String(current.getDate()).padStart(2,'0');
+  loadLog();
+}
+
+function loadLog() {
+  if (!selectedBuilding || !selectedLogStation) {
+    document.getElementById('logBody').innerHTML =
+      '<tr><td colspan="4" class="empty-state">Select a station above to load the log.</td></tr>';
+    return;
+  }
+  const dateStr = document.getElementById('logDate').value || todayStr();
+  document.getElementById('logBody').innerHTML =
+    '<tr><td colspan="4" class="empty-state">Loading…</td></tr>';
+  document.getElementById('logDateSummary').textContent = '';
+  updateLogLabel();
+
+  google.script.run
+    .withSuccessHandler(data => {
+      allLog = data;
+      const d = new Date(dateStr + 'T00:00:00');
+      const label = d.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+      document.getElementById('logDateSummary').textContent =
+        data.length + ' entr' + (data.length === 1 ? 'y' : 'ies') + ' for ' + label;
+      filterLog();
+    })
+    .withFailureHandler(err => toast(err.message, 'error'))
+    .getLogByDate(dateStr, selectedBuilding, selectedLogStation);
+}
+
+function filterLog() {
+  const search    = document.getElementById('logSearch').value.toLowerCase();
+  const actFilter = document.getElementById('logActionFilter').value;
+  const rows = allLog.filter(r => {
+    const ms = !search || (r.name||'').toLowerCase().includes(search) || String(r.studentId||'').includes(search);
+    return ms && (!actFilter || r.action === actFilter);
+  });
+  if (!rows.length) {
+    document.getElementById('logBody').innerHTML =
+      '<tr><td colspan="4" class="empty-state">No entries match filters</td></tr>';
+    return;
+  }
+  document.getElementById('logBody').innerHTML = rows.map(r => `
+    <tr>
+      <td style="font-family:'DM Mono',monospace;font-size:.78rem">${esc(r.timestamp)}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.78rem">${esc(String(r.studentId||''))}</td>
+      <td>${esc(r.name||'')}</td>
+      <td><span class="badge badge-${r.action.toLowerCase()}">${r.action}</span></td>
+    </tr>`).join('');
+}
+
+// ══ Students ═══════════════════════════════════════════════════
+function onStuStationChange() {
+  // Sync selectedStation with whatever staff pick on Students tab
+  const val = document.getElementById('stuStationSelect').value;
+  if (val) selectedStation = val;
+}
+
+function populateStuStationSelect() {
+  const sel = document.getElementById('stuStationSelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">- Station for force actions -</option>' +
+    allStations.map(s => `<option value="${esc(s.key)}" ${s.key===selectedStation?'selected':''}>${esc(s.name)}</option>`).join('');
+}
+
+function loadStudents() {
+  if (!selectedBuilding) return;
+  document.getElementById('stuBody').innerHTML =
+    '<tr><td colspan="5" class="empty-state">Loading…</td></tr>';
+  google.script.run
+    .withSuccessHandler(data => { allStudents = data; renderStudents(); })
+    .withFailureHandler(err => toast(err.message, 'error'))
+    .getStudents(currentBuilding === 'district' ? selectedBuilding : selectedBuilding);
+}
+
+function filterStudents() { renderStudents(); }
+
+function renderStudents() {
+  const search = document.getElementById('stuSearch').value.toLowerCase();
+  const rows = allStudents.filter(s =>
+    !search || (s.name||'').toLowerCase().includes(search) ||
+    String(s.id).includes(search) || (s.email||'').toLowerCase().includes(search));
+  if (!rows.length) {
+    document.getElementById('stuBody').innerHTML =
+      '<tr><td colspan="5" class="empty-state">No students found</td></tr>';
+    return;
+  }
+  document.getElementById('stuBody').innerHTML = rows.map(s => `
+    <tr>
+      <td style="font-family:'DM Mono',monospace;font-size:.78rem">${esc(String(s.id))}</td>
+      <td>${esc(s.name||'')}</td>
+      <td style="color:var(--muted);font-size:.77rem">${esc(s.email||'')}</td>
+      <td style="color:var(--muted);font-size:.78rem">${esc(s.ouName||'')}</td>
+      <td>
+        <button class="btn-icon" title="Force In"  onclick="forceIn('${esc(s.id)}')">✅</button>
+        <button class="btn-icon" title="Force Out" onclick="forceOut('${esc(s.id)}')">🔴</button>
+        <button class="btn-icon" title="Delete" onclick="confirmDeleteStudent('${esc(s.id)}')">🗑️</button>
+      </td>
+    </tr>`).join('');
+}
+
+function forceIn(id) {
+  if (!selectedStation) { toast('Select a station first', 'error'); return; }
+  var stationSnap = selectedStation;
+  google.script.run
+    .withSuccessHandler(r => {
+      if (!r.success) { toast(r.message || 'Error', 'error'); return; }
+      toast(r.student.name + ' checked IN', 'success');
+      _syncScanStation_(stationSnap);
+      loadStudents();
+      setTimeout(loadDashboard, 800);
+    })
+    .withFailureHandler(err => toast(err.message, 'error'))
+    .forceAction(id, 'IN', selectedBuilding, selectedStation);
+}
+function forceOut(id) {
+  if (!selectedStation) { toast('Select a station first', 'error'); return; }
+  var stationSnap = selectedStation;
+  google.script.run
+    .withSuccessHandler(r => {
+      if (!r.success) { toast(r.message || 'Error', 'error'); return; }
+      toast(r.student.name + ' checked OUT', 'success');
+      _syncScanStation_(stationSnap);
+      loadStudents();
+      setTimeout(loadDashboard, 800);
+    })
+    .withFailureHandler(err => toast(err.message, 'error'))
+    .forceAction(id, 'OUT', selectedBuilding, selectedStation);
+}
+function confirmDeleteStudent(id) {
+  const s = allStudents.find(x => String(x.id) === String(id));
+  const name = s ? s.name : id;
+  appConfirm('Delete student "' + name + '"? Log entries are kept.', function() { _doDeleteStudent(id, name); }); return;
+  google.script.run
+    .withSuccessHandler(() => { toast('Student deleted', 'success'); loadStudents(); })
+    .withFailureHandler(err => toast(err.message, 'error'))
+    .deleteStudent(id);
+}
+
+// ══ Student modal ═══════════════════════════════════════════════
+// ══ Guest student functions ════════════════════════════════════
+function openAddGuest() {
+  if (!BUILDINGS || !BUILDINGS.length) { toast('Please wait -- still loading', 'error'); return; }
+  document.getElementById('gName').value  = '';
+  document.getElementById('gNote').value  = '';
+
+  // Populate building dropdown
+  var sel = document.getElementById('gBuilding');
+  if (currentBuilding !== 'district') {
+    // Building staff -- pre-select their own building, hide selector
+    sel.innerHTML = '<option value="' + esc(currentBuilding) + '" selected>' + esc(currentBuilding) + '</option>';
+    document.getElementById('gBuildingRow').style.display = 'none';
+  } else {
+    sel.innerHTML = '<option value="">- Select building -</option>' +
+      BUILDINGS.map(function(b) { return '<option value="' + esc(b) + '">' + esc(b) + '</option>'; }).join('');
+    document.getElementById('gBuildingRow').style.display = 'block';
+  }
+
+  document.getElementById('guestModal').classList.add('open');
+  setTimeout(function() { document.getElementById('gName').focus(); }, 100);
+}
+
+function closeGuestModal() {
+  document.getElementById('guestModal').classList.remove('open');
+}
+
+function closeGuestResultModal() {
+  document.getElementById('guestResultModal').classList.remove('open');
+  loadStudents();
+  // Also refresh BC list so the new guest appears immediately
+  _bcLoaded = false;
+  loadBCStudents();
+}
+
+function saveGuest() {
+  const name    = document.getElementById('gName').value.trim();
+  const note    = document.getElementById('gNote').value.trim();
+  const ouName  = document.getElementById('gBuilding').value;
+  if (!name) { toast('Guest name is required', 'error'); return; }
+  if (!ouName) {
+    toast('Please select a building', 'error'); return;
+  }
+
+  const btn = document.querySelector('#guestModal .btn-primary');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Adding…';
+
+  google.script.run
+    .withSuccessHandler(r => {
+      btn.disabled = false;
+      btn.innerHTML = 'Add Guest &amp; Generate ID';
+      if (!r.success) { toast(r.message || 'Could not add guest', 'error'); return; }
+      closeGuestModal();
+      // Show the result modal with the generated ID
+      document.getElementById('gResultName').textContent = r.name;
+      document.getElementById('gResultId').textContent   = r.guestId;
+      document.getElementById('guestResultModal').classList.add('open');
+    })
+    .withFailureHandler(err => {
+      btn.disabled = false;
+      btn.innerHTML = 'Add Guest &amp; Generate ID';
+      toast(err.message || 'Error adding guest', 'error');
+    })
+    .addGuestStudent(name, note, ouName || currentBuilding);
+}
+
+function printGuestId() {
+  const id   = document.getElementById('gResultId').textContent;
+  const name = document.getElementById('gResultName').textContent;
+  // Copy to clipboard
+  navigator.clipboard.writeText(id).then(() => {
+    toast('ID copied to clipboard: ' + id, 'success');
+  }).catch(() => {
+    // Fallback: open a print-friendly window
+    const w = window.open('', '_blank', 'width=400,height=300');
+    w.document.write(
+      '<html><body style="font-family:monospace;text-align:center;padding:40px">' +
+      '<h2 style="font-size:14px;font-weight:normal;margin-bottom:8px">' + name + '</h2>' +
+      '<div style="font-size:32px;font-weight:bold;letter-spacing:4px;margin-bottom:8px">' + id + '</div>' +
+      '<div style="font-size:11px;color:#888">Temporary Guest ID</div>' +
+      '<scr'+'ipt>window.print();<\/script>' +
+      '</body></html>'
+    );
+    w.document.close();
+    w.print();
+  });
+}
+
+
+// ══ Inventory ════════════════════════════════════════════════════
+
+let _invAll      = [];
+let _invFiltered = [];
+let _overdueAll  = [];
+let _overdueFiltered = [];
+let _invLoaded   = false;
+let _editingItemBarcode = null;
+let _ddCheckoutId = null;
+let _coStudentId  = null;
+
+
+function initInvPage() {
+  // Populate building selector BEFORE calling invShowSub/loadInventory
+  if (currentBuilding === 'district') {
+    var sel = document.getElementById('invBuildingItems');
+    if (sel) {
+      if (!sel.options.length) {
+        sel.innerHTML = BUILDINGS.map(function(b) { return '<option value="' + esc(b) + '">' + esc(b) + '</option>'; }).join('');
+      }
+      if (selectedBuilding) sel.value = selectedBuilding;
+      else if (!sel.value) sel.value = BUILDINGS[0];
+      document.getElementById('invBuildingFieldItems').style.display = 'block';
+    }
+  }
+  // Now activate items sub-page (which calls loadInventory with correct bld)
+  populateInvStationFilter();
+  _invLoaded = false;
+  invShowSub('items');
+  loadOverdueCount();
+}
+
+
+function filterInventory() {
+  var search = (document.getElementById('invSearch') ? document.getElementById('invSearch').value : '').toLowerCase().trim();
+  var cat    = document.getElementById('invCatFilter') ? document.getElementById('invCatFilter').value : '';
+  _invFiltered = _invAll.filter(function(i) {
+    if (cat    && i.category !== cat) return false;
+    if (search && !i.name.toLowerCase().includes(search) && !i.barcode.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  renderInventory();
+}
+
+
+function invEditItem(btn) { openEditItem(btn.dataset.bc); }
+function invDelItem(btn)  { deleteItem(btn.dataset.bc, btn.dataset.bld); }
+function invOpenDD(btn)   { openDueDateModal(btn.dataset.id, btn.dataset.sn, btn.dataset['in'], btn.dataset.dd); }
+
+function openAddItem() {
+  _editingItemBarcode = null;
+  document.getElementById('itemModalTitle').textContent = 'Add Item';
+  document.getElementById('itemModalSave').textContent  = 'Add Item';
+  ['iName','iCategory','iDescription','iBarcode'].forEach(function(id) { document.getElementById(id).value = ''; });
+  document.getElementById('iQty').value     = '1';
+  document.getElementById('iDueDays').value = '14';
+  document.getElementById('iDueUnit').value = 'days';
+  document.getElementById('iDuePreview').textContent = '= 14 days';
+  document.getElementById('iBarcodeSection').style.display = 'block';
+  document.getElementById('iBuildingRow').style.display   = 'block';
+  var bSel = document.getElementById('iBuilding');
+  bSel.onchange = function() { populateItemStationSelect('', this.value); };
+  if (currentBuilding === 'district') {
+    bSel.innerHTML = '<option value="">— Select building —</option>' +
+      BUILDINGS.map(function(b) { return '<option value="' + esc(b) + '">' + esc(b) + '</option>'; }).join('');
+  } else {
+    bSel.innerHTML = '<option value="' + esc(currentBuilding) + '" selected>' + esc(currentBuilding) + '</option>';
+    document.getElementById('iBuildingRow').style.display = 'none';
+  }
+  document.getElementById('iReorderPoint').value = '0';
+  document.getElementById('iNoDueDate').checked = false;
+  document.getElementById('iDueDuration').style.opacity = '1';
+  document.getElementById('iDueDuration').style.pointerEvents = 'auto';
+  // Pass building immediately for non-district users
+  var initBld = currentBuilding !== 'district' ? currentBuilding : '';
+  populateItemStationSelect('', initBld);
+  document.getElementById('itemModal').classList.add('open');
+  setTimeout(function() { document.getElementById('iName').focus(); }, 80);
+}
+
+function openEditItem(barcode) {
+  var item = _invAll.find(function(i) { return i.barcode === barcode; });
+  if (!item) return;
+  _editingItemBarcode = barcode;
+  document.getElementById('itemModalTitle').textContent = 'Edit Item';
+  document.getElementById('itemModalSave').textContent  = 'Save Changes';
+  document.getElementById('iName').value        = item.name;
+  document.getElementById('iCategory').value    = item.category || '';
+  document.getElementById('iDescription').value = item.description || '';
+  document.getElementById('iQty').value         = item.totalQty;
+  var noDue2 = !item.defaultDueDays || item.defaultDueDays === 0;
+  document.getElementById('iNoDueDate').checked = noDue2;
+  document.getElementById('iDueDays').value     = noDue2 ? '14' : item.defaultDueDays;
+  document.getElementById('iDueUnit').value     = 'days';
+  document.getElementById('iDueDuration').style.opacity       = noDue2 ? '0.35' : '1';
+  document.getElementById('iDueDuration').style.pointerEvents = noDue2 ? 'none'  : 'auto';
+  document.getElementById('iDuePreview').textContent = noDue2 ? '= no due date' : '= ' + item.defaultDueDays + ' days';
+  document.getElementById('iReorderPoint').value = item.reorderPoint || 0;
+  document.getElementById('iBarcodeSection').style.display = 'none';
+  document.getElementById('iBuildingRow').style.display    = 'none';
+  populateItemStationSelect(item.stationKey || '', item.building);
+  document.getElementById('itemModal').classList.add('open');
+}
+
+function closeItemModal() {
+  document.getElementById('itemModal').classList.remove('open');
+  document.getElementById('iBuildingRow').style.display = 'block';
+}
+
+function generateItemBarcode() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var id = 'ITEM-';
+  for (var i = 0; i < 8; i++) id += chars[Math.floor(Math.random() * chars.length)];
+  document.getElementById('iBarcode').value = id;
+}
+
+function syncDueDays() {
+  var unit = document.getElementById('iDueUnit').value;
+  var val  = parseInt(document.getElementById('iDueDays').value) || 1;
+  var days = unit === 'weeks' ? val * 7 : unit === 'months' ? val * 30 : val;
+  document.getElementById('iDueDays').value = days;
+  document.getElementById('iDuePreview').textContent = '= ' + days + ' day' + (days !== 1 ? 's' : '');
+}
+
+function saveItem() {
+  var name = document.getElementById('iName').value.trim();
+  var cat  = document.getElementById('iCategory').value.trim();
+  var desc = document.getElementById('iDescription').value.trim();
+  var bld  = document.getElementById('iBuilding').value || currentBuilding;
+  var qty  = parseInt(document.getElementById('iQty').value) || 1;
+  var noDue = document.getElementById('iNoDueDate') && document.getElementById('iNoDueDate').checked;
+  var days = noDue ? 0 : (parseInt(document.getElementById('iDueDays').value) || 14);
+  var bc   = document.getElementById('iBarcode').value.trim();
+  if (!name) { toast('Item name is required', 'error'); return; }
+  if (!bld)  { toast('Please select a building', 'error'); return; }
+  var btn = document.getElementById('itemModalSave');
+  btn.disabled = true;
+  if (_editingItemBarcode) {
+    google.script.run
+      .withSuccessHandler(function(r) {
+        btn.disabled = false;
+        if (!r.success) { toast(r.message || 'Could not save', 'error'); return; }
+        toast('Item updated', 'success'); closeItemModal(); _invLoaded = false; loadInventory();
+      })
+      .withFailureHandler(function(err) { btn.disabled = false; toast(err.message, 'error'); })
+      .updateInventoryItem(_editingItemBarcode, bld, {
+        name: name, category: cat, description: desc, totalQty: qty, defaultDueDays: days,
+        stationKey: document.getElementById('iStation').value || '',
+        reorderPoint: parseInt(document.getElementById('iReorderPoint').value) || 0
+      });
+  } else {
+    var sk  = document.getElementById('iStation').value || '';
+    var rp  = parseInt(document.getElementById('iReorderPoint').value) || 0;
+    google.script.run
+      .withSuccessHandler(function(r) {
+        btn.disabled = false;
+        if (!r.success) { toast(r.message || 'Could not add item', 'error'); return; }
+        toast('Item added: ' + r.name, 'success'); closeItemModal(); _invLoaded = false; loadInventory();
+      })
+      .withFailureHandler(function(err) { btn.disabled = false; toast(err.message, 'error'); })
+      .addInventoryItem(bc, name, cat, desc, bld, qty, days, sk, rp);
+  }
+}
+
+function deleteItem(barcode, building) {
+  appConfirm('Remove "' + barcode + '" from inventory? Active checkout records are preserved.', function() { _doInvDelete(barcode, bld, btn2); }); return;
+  google.script.run
+    .withSuccessHandler(function(r) {
+      if (!r.success) { toast(r.message || 'Could not delete', 'error'); return; }
+      toast('Item removed', 'success'); _invLoaded = false; loadInventory();
+    })
+    .withFailureHandler(function(err) { toast(err.message, 'error'); })
+    .deleteInventoryItem(barcode, building);
+}
+
+function initCoPanel() {
+  document.getElementById('coResult').className = 'confirm-banner';
+  document.getElementById('coResult').innerHTML = '';
+  document.getElementById('coDueDateOverride').style.display = 'none';
+  if (currentBuilding === 'student') {
+    document.getElementById('coStaffFields').style.display = 'none';
+  }
+  var stuInput = document.getElementById('coStudentInput');
+  if (stuInput && !stuInput._bound) {
+    stuInput._bound = true;
+    stuInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        _coStudentId = stuInput.value.trim();
+        if (_coStudentId) {
+          document.getElementById('coStudentPreview').textContent = 'Student ID: ' + _coStudentId;
+          loadCoStudentCheckouts(_coStudentId);
+          document.getElementById('coItemInput').focus();
+        }
+      }
+    });
+  }
+}
+
+function clearCoStudent() {
+  _coStudentId = null;
+  document.getElementById('coStudentInput').value = '';
+  document.getElementById('coStudentPreview').textContent = '';
+  document.getElementById('coStudentCheckouts').innerHTML =
+    '<div class="empty-state" style="padding:1rem;font-size:.8rem">Scan a student to see their items</div>';
+}
+
+function loadCoStudentCheckouts(studentId) {
+  var bld = currentBuilding === 'district' ? (selectedBuilding || BUILDINGS[0]) : currentBuilding;
+  document.getElementById('coStudentCheckouts').innerHTML =
+    '<div class="empty-state" style="padding:1rem;font-size:.8rem">Loading\u2026</div>';
+  google.script.run
+    .withSuccessHandler(function(checkouts) {
+      _coStudentId = studentId;
+      renderCoStudentCheckouts(checkouts);
+    })
+    .withFailureHandler(function() {
+      document.getElementById('coStudentCheckouts').innerHTML =
+        '<div class="empty-state" style="padding:1rem;font-size:.8rem">Could not load checkouts</div>';
+    })
+    .getActiveCheckouts(bld);
+}
+
+function renderCoStudentCheckouts(allCheckouts) {
+  var mine = allCheckouts.filter(function(c) { return String(c.studentId) === String(_coStudentId); });
+  var el = document.getElementById('coStudentCheckouts');
+  if (!mine.length) { el.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:.8rem">No items checked out</div>'; return; }
+  var today = new Date(); today.setHours(0,0,0,0);
+  el.innerHTML = mine.map(function(c) {
+    var overdueBadge = c.overdue ? '<span style="font-size:.68rem;font-weight:700;color:#991B1B;background:rgba(239,68,68,0.12);border-radius:3px;padding:.1rem .3rem;margin-left:.4rem">OVERDUE</span>' : '';
+    var daysLabel = c.daysLeft !== null ? (c.daysLeft < 0 ? Math.abs(c.daysLeft)+'d overdue' : c.daysLeft===0 ? 'Due today' : c.daysLeft+'d left') : '';
+    var dueColor  = c.overdue ? 'color:#991B1B' : (c.daysLeft !== null && c.daysLeft <= 3) ? 'color:#D97706' : 'color:var(--muted)';
+    return '<div style="display:flex;align-items:center;gap:.4rem;padding:.5rem 0;border-bottom:.5px solid var(--border);font-size:.82rem">' +
+      '<div style="flex:1"><div style="font-weight:500">' + esc(c.itemName) + overdueBadge + '</div>' +
+      '<div style="' + dueColor + ';font-size:.75rem">Due: ' + (c.dueDate||'\u2014') + (daysLabel ? '  (' + daysLabel + ')' : '') + '</div></div>' +
+      '<button class="btn-icon" title="Change due date" onclick="invOpenDD(this)" data-id="' + esc(c.checkoutId) + '" data-sn="' + esc(c.studentName) + '" data-in="' + esc(c.itemName) + '" data-dd="' + esc(c.dueDate) + '">📅</button>' +
+    '</div>';
+  }).join('');
+}
+
+function processCoScan() {
+  var bld = currentBuilding === 'district' ? (selectedBuilding || BUILDINGS[0]) : currentBuilding;
+  var itemBarcode = document.getElementById('coItemInput').value.trim();
+  var dueOverride = document.getElementById('coDueDate').value || null;
+  if (!itemBarcode) { toast('Scan or enter an item barcode', 'error'); return; }
+  document.getElementById('coDueDateOverride').style.display = 'block';
+  var resultEl = document.getElementById('coResult');
+  resultEl.className = 'confirm-banner';
+  resultEl.innerHTML = '<span class="spinner"></span>';
+  if (currentBuilding === 'student') {
+    google.script.run
+      .withSuccessHandler(function(r) { handleCoResult(r, resultEl); })
+      .withFailureHandler(function(err) { showCoError(err.message, resultEl); })
+      .studentCheckoutItem(itemBarcode, bld, selectedStation || '');
+  } else {
+    var sid = _coStudentId || document.getElementById('coStudentInput').value.trim();
+    if (!sid) { toast('Scan a student barcode first', 'error'); resultEl.innerHTML = ''; return; }
+    _coStudentId = sid;
+    google.script.run
+      .withSuccessHandler(function(r) { handleCoResult(r, resultEl); if (r.success) loadCoStudentCheckouts(sid); })
+      .withFailureHandler(function(err) { showCoError(err.message, resultEl); })
+      .checkoutItem(sid, itemBarcode, bld, selectedStation || '', dueOverride);
+  }
+  document.getElementById('coItemInput').value = '';
+}
+
+function handleCoResult(r, el) {
+  if (!r.success) { showCoError(r.message, el); return; }
+  var isOut = r.action === 'OUT';
+  el.className = 'confirm-banner visible ' + (isOut ? 'in' : 'out');
+  el.innerHTML =
+    '<div class="confirm-icon">' + (isOut ? '\u2713' : '\u2717') + '</div>' +
+    '<div><div class="confirm-name">' + esc(r.studentName) + '</div>' +
+    '<div class="confirm-meta">' + (isOut ? 'Checked out: ' : 'Returned: ') + esc(r.itemName) + (r.dueDate ? '  \u00b7  Due ' + r.dueDate : '') + '</div></div>' +
+    '<div class="confirm-badge">' + (isOut ? 'OUT' : 'IN') + '</div>';
+  loadOverdueCount();
+}
+
+function showCoError(msg, el) {
+  el.className = 'confirm-banner visible err';
+  el.innerHTML = '<div class="confirm-icon">!</div><div><div class="confirm-name">' + esc(msg) + '</div></div>';
+}
+
+function openDueDateModal(checkoutId, studentName, itemName, currentDue) {
+  _ddCheckoutId = checkoutId;
+  document.getElementById('ddStudentLabel').textContent =
+    studentName + ' \u2014 ' + itemName + (currentDue ? '  (currently due ' + currentDue + ')' : '');
+  document.getElementById('ddNewDate').value = currentDue || '';
+  document.getElementById('dueDateModal').classList.add('open');
+}
+
+function closeDueDateModal() {
+  document.getElementById('dueDateModal').classList.remove('open');
+  _ddCheckoutId = null;
+}
+
+function saveDueDate() {
+  if (!_ddCheckoutId) return;
+  var bld     = currentBuilding === 'district' ? (selectedBuilding || BUILDINGS[0]) : currentBuilding;
+  var newDate = document.getElementById('ddNewDate').value;
+  if (!newDate) { toast('Please select a date', 'error'); return; }
+  google.script.run
+    .withSuccessHandler(function(r) {
+      if (!r.success) { toast(r.message || 'Could not update', 'error'); return; }
+      toast('Due date updated', 'success');
+      closeDueDateModal();
+      if (_coStudentId) loadCoStudentCheckouts(_coStudentId);
+      loadOverdue(); loadOverdueCount();
+    })
+    .withFailureHandler(function(err) { toast(err.message, 'error'); })
+    .updateCheckoutDueDate(_ddCheckoutId, newDate, bld);
+}
+
+function loadOverdue() {
+  var bld = currentBuilding === 'district' ? (selectedBuilding || BUILDINGS[0]) : currentBuilding;
+  document.getElementById('overdueBody').innerHTML =
+    '<tr><td colspan="5" class="empty-state">Loading\u2026</td></tr>';
+  google.script.run
+    .withSuccessHandler(function(items) {
+      _overdueAll = items; _overdueFiltered = items; renderOverdue();
+    })
+    .withFailureHandler(function(err) {
+      document.getElementById('overdueBody').innerHTML =
+        '<tr><td colspan="5" class="empty-state" style="color:#f87171">' + esc(err.message) + '</td></tr>';
+    })
+    .getOverdueCheckouts(bld);
+}
+
+function filterOverdue() {
+  var s = (document.getElementById('overdueSearch').value || '').toLowerCase().trim();
+  _overdueFiltered = s ? _overdueAll.filter(function(c) {
+    return c.studentName.toLowerCase().includes(s) || c.itemName.toLowerCase().includes(s);
+  }) : _overdueAll;
+  renderOverdue();
+}
+
+function renderOverdue() {
+  var body = document.getElementById('overdueBody');
+  if (!_overdueFiltered.length) {
+    body.innerHTML = '<tr><td colspan="5" class="empty-state" style="color:#22C55E">No overdue items \uD83C\uDF89</td></tr>';
+    return;
+  }
+  body.innerHTML = _overdueFiltered.map(function(c) {
+    var daysOver = c.daysLeft !== null ? Math.abs(c.daysLeft) : '?';
+    return '<tr>' +
+      '<td><div style="font-weight:500">' + esc(c.studentName) + '</div><div style="font-size:.75rem;color:var(--muted)">' + esc(c.studentId) + '</div></td>' +
+      '<td>' + esc(c.itemName) + '</td>' +
+      '<td style="color:#991B1B;font-weight:500">' + esc(c.dueDate) + '</td>' +
+      '<td><span style="background:rgba(239,68,68,0.12);color:#991B1B;border-radius:4px;padding:.15rem .5rem;font-weight:700;font-size:.82rem">' + daysOver + ' days</span></td>' +
+      '<td><button class="btn-icon" title="Change due date" onclick="invOpenDD(this)" data-id="' + esc(c.checkoutId) + '" data-sn="' + esc(c.studentName) + '" data-in="' + esc(c.itemName) + '" data-dd="' + esc(c.dueDate) + '">📅</button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function loadOverdueCount() {
+  var bld = currentBuilding === 'district' ? (selectedBuilding || BUILDINGS[0]) : currentBuilding;
+  if (!bld) return;
+  google.script.run
+    .withSuccessHandler(function(n) {
+      var badge = document.getElementById('overdueCountBadge');
+      if (badge) { badge.textContent = n; badge.style.display = n > 0 ? 'inline-block' : 'none'; }
+      var tabBtn = document.getElementById('invTab');
+      var tb     = document.getElementById('invTabBadge');
+      if (n > 0) {
+        if (!tb && tabBtn) {
+          tb = document.createElement('span');
+          tb.className = 'overdue-badge'; tb.id = 'invTabBadge';
+          tabBtn.appendChild(tb);
+        }
+        if (tb) tb.textContent = n;
+      } else if (tb) { tb.remove(); }
+    })
+    .withFailureHandler(function() {})
+    .getOverdueCount(bld);
+}
+
+// ══ Kiosk item checkout ═══════════════════════════════════════════
+// Two-step flow: scan student ID → scan item barcode → checkout/return
+// Completely separate from attendance scanning.
+
+let _kioskCoStudentId = null;
+
+function _initKioskCoInputs() {
+  var stuIn  = document.getElementById('kioskCoStudentInput');
+  var itemIn = document.getElementById('kioskCoItemInput');
+  if (!stuIn || !itemIn) return;
+
+  // Step 1 — student ID
+  stuIn.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    var val = stuIn.value.trim();
+    if (!val) return;
+    _kioskCoStudentId = val;
+    document.getElementById('kioskCoStudentPreview').textContent = 'Student ID: ' + val;
+    itemIn.disabled = false;
+    itemIn.focus();
+    stuIn.disabled  = true;
+  });
+
+  // Step 2 — item barcode
+  itemIn.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    var itemBarcode = itemIn.value.trim();
+    if (!itemBarcode) return;
+    kioskProcessItem(itemBarcode);
+    itemIn.value = '';
+  });
+}
+
+function kioskProcessItem(itemBarcode) {
+  var building = selectedBuilding || currentBuilding;
+  var resultEl = document.getElementById('kioskCoResult');
+  resultEl.className = 'confirm-banner';
+  resultEl.innerHTML = '<span class="spinner"></span>';
+
+  google.script.run
+    .withSuccessHandler(function(r) {
+      if (!r.success) {
+        resultEl.className = 'confirm-banner visible err';
+        resultEl.innerHTML =
+          '<div class="confirm-icon">!</div>' +
+          '<div><div class="confirm-name">' + esc(r.message) + '</div></div>';
+        // Re-enable item input so they can try again
+        var itemIn = document.getElementById('kioskCoItemInput');
+        if (itemIn) itemIn.focus();
+        return;
+      }
+      var isOut = r.action === 'OUT';
+      resultEl.className = 'confirm-banner visible ' + (isOut ? 'in' : 'out');
+      resultEl.innerHTML =
+        '<div class="confirm-icon">' + (isOut ? '✓' : '✗') + '</div>' +
+        '<div>' +
+          '<div class="confirm-name">' + esc(r.itemName) + '</div>' +
+          '<div class="confirm-meta">' +
+            (isOut ? 'Checked out' : 'Returned') +
+            (r.dueDate ? '  ·  Due ' + r.dueDate : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="confirm-badge">' + (isOut ? 'OUT' : 'IN') + '</div>';
+      // Auto-clear after 5s so kiosk is ready for next student
+      setTimeout(function() { kioskCoClear(); }, 5000);
+    })
+    .withFailureHandler(function(err) {
+      resultEl.className = 'confirm-banner visible err';
+      resultEl.innerHTML =
+        '<div class="confirm-icon">!</div>' +
+        '<div><div class="confirm-name">' + esc(err.message || 'Error') + '</div></div>';
+    })
+    .kioskCheckoutItem(_kioskCoStudentId, itemBarcode, building, selectedStation || '');
+}
+
+function kioskCoClear() {
+  _kioskCoStudentId = null;
+  var stuIn  = document.getElementById('kioskCoStudentInput');
+  var itemIn = document.getElementById('kioskCoItemInput');
+  var prev   = document.getElementById('kioskCoStudentPreview');
+  var res    = document.getElementById('kioskCoResult');
+  if (stuIn)  { stuIn.value = '';  stuIn.disabled  = false; }
+  if (itemIn) { itemIn.value = ''; itemIn.disabled = true;  }
+  if (prev)   { prev.textContent = ''; }
+  if (res)    { res.className = 'confirm-banner'; res.innerHTML = ''; }
+  if (stuIn)  stuIn.focus();
+}
+
+// ══ Barcode print page ══════════════════════════════════════════════
+
+
+
+var _bcAll      = [];
+var _bcFiltered = [];
+var _bcSelected = new Set();
+var _bcLoaded   = false;
+
+function initBCPage() {
+  if (currentBuilding === 'district') {
+    var sel = document.getElementById('bcBuilding');
+    sel.innerHTML = BUILDINGS.map(function(b) { return '<option value="' + esc(b) + '">' + esc(b) + '</option>'; }).join('');
+    sel.value = selectedBuilding || BUILDINGS[0];
+    document.getElementById('bcBuildingField').style.display = 'block';
+  }
+  if (!_bcLoaded) loadBCStudents();
+  loadBCItems();
+}
+
+function loadBCStudents() {
+  var bld = currentBuilding === 'district'
+    ? document.getElementById('bcBuilding').value
+    : currentBuilding;
+  _bcAll = []; _bcFiltered = []; _bcSelected.clear();
+  document.getElementById('bcList').innerHTML =
+    '<div class="empty-state" style="padding:1rem;font-size:.8rem">Loading...</div>';
+  google.script.run
+    .withSuccessHandler(function(students) {
+      students.sort(function(a, b) {
+        var aG = a.id.startsWith('GUEST-') ? 1 : 0;
+        var bG = b.id.startsWith('GUEST-') ? 1 : 0;
+        if (aG !== bG) return aG - bG;
+        return a.name.localeCompare(b.name);
+      });
+      _bcAll = students; _bcLoaded = true;
+      filterBC();
+    })
+    .withFailureHandler(function(err) {
+      document.getElementById('bcList').innerHTML =
+        '<div class="empty-state" style="padding:1rem;font-size:.8rem;color:#f87171">' + esc(err.message) + '</div>';
+    })
+    .getStudents(bld);
+}
+
+function filterBC() {
+  var search = document.getElementById('bcSearch').value.toLowerCase().trim();
+  _bcFiltered = _bcAll.filter(function(s) {
+    if (search && !s.name.toLowerCase().includes(search) && !String(s.id).includes(search)) return false;
+    return true;
+  });
+  renderBCList();
+}
+
+function renderBCList() {
+  var list = document.getElementById('bcList');
+  if (!_bcFiltered.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:.8rem">No students match</div>';
+    updateBCCount(); return;
+  }
+  list.innerHTML = _bcFiltered.map(function(s) {
+    var checked = _bcSelected.has(s.id) ? 'checked' : '';
+    var displayName = s.name.replace(/\s*\(.*?\)\s*/g, '').trim();
+    var guestBadge  = s.id.startsWith('GUEST-') || /^G\d{8}$/.test(s.id)
+      ? ' <span style="font-size:.68rem;background:rgba(245,158,11,.15);color:#b45309;border-radius:3px;padding:.1rem .3rem;flex-shrink:0">GUEST</span>'
+      : '';
+    return '<label style="display:flex;align-items:center;gap:.5rem;padding:.45rem .6rem;cursor:pointer;border-bottom:.5px solid var(--border);font-size:.82rem">' +
+      '<input type="checkbox" ' + checked + ' onchange="bcToggle(\'' + esc(s.id) + '\',this.checked)" style="flex-shrink:0">' +
+      '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(displayName) + guestBadge + '</span>' +
+    '</label>';
+  }).join('');
+  updateBCCount();
+}
+
+function bcToggle(id, checked) {
+  if (checked) _bcSelected.add(id); else _bcSelected.delete(id);
+  updateBCCount();
+}
+
+function bcSelectAll() { _bcFiltered.forEach(function(s) { _bcSelected.add(s.id); }); renderBCList(); updateBCItemCount(); }
+function bcClearAll()  { _bcFiltered.forEach(function(s) { _bcSelected.delete(s.id); }); renderBCList(); updateBCItemCount(); }
+
+function updateBCCount() {
+  var total = _bcSelected.size;
+  document.getElementById('bcSelCount').textContent =
+    total ? total + ' student' + (total !== 1 ? 's' : '') + ' selected' : '';
+  // Build button enabled if any student OR item selected
+  var anySelected = _bcSelected.size > 0 || (_bcItemSelected && _bcItemSelected.size > 0);
+  document.getElementById('bcBuildBtn').disabled = !anySelected;
+}
+
+function buildBCSheet() {
+  var h    = parseInt(document.getElementById('bcHeight').value);
+  var grid = document.getElementById('bcGrid');
+  // Auto-fit: taller bars need wider cards so use fewer columns
+  var cols = h <= 48 ? 5 : h <= 64 ? 4 : 3;
+
+  var chosenStudents = _bcAll.filter(function(s) { return _bcSelected.has(s.id); });
+  var chosenItems    = _bcItemAll.filter(function(i) { return _bcItemSelected.has(i.barcode); });
+
+  if (!chosenStudents.length && !chosenItems.length) {
+    alert('Select at least one student or item first.');
+    return;
+  }
+
+  grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+  grid.innerHTML = '';
+
+  function addCard(barcode, label) {
+    var card = document.createElement('div');
+    card.className = 'bc-card';
+    var bc = document.createElement('div');
+    bc.className = 'bc-barcode';
+    bc.style.fontSize = h + 'px';
+    // Code 39 requires * as start/stop characters
+    bc.textContent = '*' + barcode.toUpperCase() + '*';
+    card.appendChild(bc);
+    // Scale horizontally to fit card without reducing bar height
+    requestAnimationFrame(function() {
+      var available = card.offsetWidth - 8;
+      var actual    = bc.scrollWidth;
+      if (actual > available && available > 0) {
+        bc.style.transformOrigin = 'top left';
+        bc.style.transform = 'scaleX(' + (available / actual).toFixed(4) + ')';
+      }
+    });
+    if (label) {
+      var n = document.createElement('div');
+      n.className = 'bc-name';
+      n.textContent = label.replace(/\s*\(.*?\)\s*/g, '').trim();
+      card.appendChild(n);
+    }
+    grid.appendChild(card);
+  }
+
+  // ── Students section ──────────────────────────────────────────
+  if (chosenStudents.length) {
+    if (chosenItems.length) {
+      // Section header spanning all columns
+      var hdr = document.createElement('div');
+      hdr.style.cssText = 'grid-column:1/-1;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;padding:.4rem 0 .2rem;border-bottom:.5px solid #ddd;margin-bottom:.2rem';
+      hdr.textContent = 'Students';
+      grid.appendChild(hdr);
+    }
+    for (var i = 0; i < chosenStudents.length; i++) {
+      addCard(chosenStudents[i].id, chosenStudents[i].name);
+    }
+  }
+
+  // ── Items section ─────────────────────────────────────────────
+  if (chosenItems.length) {
+    var itemHdr = document.createElement('div');
+    itemHdr.style.cssText = 'grid-column:1/-1;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;padding:.6rem 0 .2rem;border-bottom:.5px solid #ddd;margin-bottom:.2rem;margin-top:.4rem';
+    itemHdr.textContent = 'Inventory Items';
+    grid.appendChild(itemHdr);
+    for (var j = 0; j < chosenItems.length; j++) {
+      addCard(chosenItems[j].barcode, chosenItems[j].name);
+    }
+  }
+
+  var total = chosenStudents.length + chosenItems.length;
+  document.getElementById('bcPrintBtn').disabled = false;
+  document.getElementById('bcSheetCount').textContent =
+    total + ' barcode' + (total !== 1 ? 's' : '') +
+    (chosenStudents.length && chosenItems.length
+      ? ' (' + chosenStudents.length + ' students, ' + chosenItems.length + ' items)'
+      : '') + ' — ready to print';
+}
+
+
+// ══ BC Items section ═════════════════════════════════════════════
+
+var _bcItemAll      = [];
+var _bcItemFiltered = [];
+var _bcItemSelected = new Set();
+
+function loadBCItems() {
+  var bld = currentBuilding === 'district'
+    ? (document.getElementById('bcBuilding') ? document.getElementById('bcBuilding').value : selectedBuilding)
+    : currentBuilding;
+  if (!bld) return;
+  var list = document.getElementById('bcItemList');
+  if (list) list.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:.8rem">Loading…</div>';
+  google.script.run
+    .withSuccessHandler(function(items) {
+      _bcItemAll = items || [];
+      _bcItemFiltered = _bcItemAll.slice();
+      renderBCItemList();
+    })
+    .withFailureHandler(function() {
+      var list = document.getElementById('bcItemList');
+      if (list) list.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:.8rem;color:#f87171">Could not load items</div>';
+    })
+    .getInventory(bld);
+}
+
+function filterBCItems() {
+  var search = (document.getElementById('bcItemSearch').value || '').toLowerCase().trim();
+  _bcItemFiltered = search
+    ? _bcItemAll.filter(function(i) {
+        return i.name.toLowerCase().includes(search) || i.barcode.toLowerCase().includes(search);
+      })
+    : _bcItemAll.slice();
+  renderBCItemList();
+}
+
+function renderBCItemList() {
+  var list = document.getElementById('bcItemList');
+  if (!list) return;
+  if (!_bcItemFiltered.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:.8rem">No items found</div>';
+    updateBCItemCount();
+    return;
+  }
+  list.innerHTML = _bcItemFiltered.map(function(item) {
+    var checked = _bcItemSelected.has(item.barcode) ? 'checked' : '';
+    return '<label style="display:flex;align-items:center;gap:.5rem;padding:.45rem .6rem;cursor:pointer;border-bottom:.5px solid var(--border);font-size:.82rem">' +
+      '<input type="checkbox" ' + checked + ' onchange="bcItemToggle(this.dataset.bc,this.checked)" data-bc="' + esc(item.barcode) + '" style="flex-shrink:0">' +
+      '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(item.name) + '</span>' +
+      '<span style="font-size:.68rem;color:var(--muted);flex-shrink:0">' + esc(item.barcode) + '</span>' +
+    '</label>';
+  }).join('');
+  updateBCItemCount();
+}
+
+function bcItemToggle(barcode, checked) {
+  if (checked) _bcItemSelected.add(barcode); else _bcItemSelected.delete(barcode);
+  updateBCItemCount();
+}
+
+function bcItemSelectAll() {
+  _bcItemFiltered.forEach(function(i) { _bcItemSelected.add(i.barcode); });
+  renderBCItemList();
+}
+
+function bcItemClearAll() {
+  _bcItemFiltered.forEach(function(i) { _bcItemSelected.delete(i.barcode); });
+  renderBCItemList();
+}
+
+function updateBCItemCount() {
+  var total = _bcItemSelected.size;
+  var el = document.getElementById('bcItemSelCount');
+  if (el) el.textContent = total ? total + ' item' + (total !== 1 ? 's' : '') + ' selected' : '';
+  // Enable Build button if any student OR item selected
+  var anySelected = _bcSelected.size > 0 || _bcItemSelected.size > 0;
+  var btn = document.getElementById('bcBuildBtn');
+  if (btn) btn.disabled = !anySelected;
+}
+
+
+// ── Student item checkout history (read-only) ──────────────────
+function loadMyItemCheckouts() {
+  var el = document.getElementById('myItemCheckouts');
+  if (!el) return;
+  el.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:.8rem">Loading…</div>';
+  google.script.run
+    .withSuccessHandler(function(checkouts) {
+      if (!checkouts || !checkouts.length) {
+        el.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:.8rem">No items checked out.</div>';
+        return;
+      }
+      var today = new Date(); today.setHours(0,0,0,0);
+      el.innerHTML = checkouts.map(function(c) {
+        var overdue   = c.overdue;
+        var daysLeft  = c.daysLeft;
+        var dueColor  = overdue ? 'color:#991B1B' : (daysLeft !== null && daysLeft <= 3) ? 'color:#D97706' : 'color:var(--muted)';
+        var overdueTag = overdue
+          ? '<span style="font-size:.68rem;font-weight:700;color:#991B1B;background:rgba(239,68,68,0.12);border-radius:3px;padding:.1rem .3rem;margin-left:.3rem">OVERDUE</span>'
+          : '';
+        var daysLabel = daysLeft !== null
+          ? (daysLeft < 0 ? Math.abs(daysLeft) + 'd overdue' : daysLeft === 0 ? 'Due today' : daysLeft + 'd left')
+          : '';
+        return '<div style="display:flex;align-items:center;gap:.5rem;padding:.55rem 0;border-bottom:.5px solid var(--border);font-size:.83rem">' +
+          '<span style="font-size:1.1rem">📦</span>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(c.itemName) + overdueTag + '</div>' +
+            '<div style="' + dueColor + ';font-size:.74rem">Due: ' + (c.dueDate || '—') + (daysLabel ? ' (' + daysLabel + ')' : '') + '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    })
+    .withFailureHandler(function() {
+      var el2 = document.getElementById('myItemCheckouts');
+      if (el2) el2.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:.8rem">Could not load item checkouts.</div>';
+    })
+    .getStudentActiveCheckouts(selectedBuilding || null);
+}
+
+
+// ══ Inventory — Station filter, Reorder, Adjustments, Alerts ════
+
+// ── Station filter population ─────────────────────────────────────
+function populateInvStationFilter() {
+  var bld = currentBuilding === 'district'
+    ? (document.getElementById('invBuildingItems') ? document.getElementById('invBuildingItems').value : selectedBuilding)
+    : currentBuilding;
+  var sel = document.getElementById('invStationFilter');
+  if (!sel) return;
+  var stations = allStations.filter(function(s) { return s.building === bld; });
+  sel.innerHTML = '<option value="">All stations</option>' +
+    stations.map(function(s) { return '<option value="' + esc(s.key) + '">' + esc(s.name) + '</option>'; }).join('');
+}
+
+// ── Override loadInventory to pass station key ────────────────────
+var _invStationKey = '';
+
+function loadInventory() {
+  var bld = currentBuilding === 'district'
+    ? (document.getElementById('invBuildingItems') ? document.getElementById('invBuildingItems').value : selectedBuilding)
+    : currentBuilding;
+  if (!bld) bld = selectedBuilding || BUILDINGS[0];
+  var sk = document.getElementById('invStationFilter') ? document.getElementById('invStationFilter').value : '';
+  _invStationKey = sk;
+  var body = document.getElementById('invBody');
+  if (body) body.innerHTML = '<tr><td colspan="9" class="empty-state">Loading…</td></tr>';
+  google.script.run
+    .withSuccessHandler(function(items) {
+      try {
+        _invAll = items || []; _invLoaded = true;
+        var cats = [];
+        _invAll.forEach(function(i) { if (i.category && !cats.includes(i.category)) cats.push(i.category); });
+        cats.sort();
+        var sel = document.getElementById('invCatFilter');
+        if (sel) sel.innerHTML = '<option value="">All categories</option>' +
+          cats.map(function(c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('');
+        populateInvStationFilter();
+        filterInventory();
+      } catch(e) {
+        toast('Inventory render error: ' + e.message, 'error');
+      }
+    })
+    .withFailureHandler(function(err) {
+      if (body) body.innerHTML = '<tr><td colspan="9" class="empty-state" style="color:#f87171">' + esc(err.message || 'Unknown error') + '</td></tr>';
+      toast(err.message || 'Inventory load failed', 'error');
+    })
+    .getInventory(bld, sk || null);
+}
+
+// ── Updated renderInventory with station + reorder columns ────────
+function renderInventory() {
+  var body = document.getElementById('invBody');
+  if (!body) return;
+  if (!_invFiltered.length) {
+    body.innerHTML = '<tr><td colspan="9" class="empty-state">No items found</td></tr>';
+    return;
+  }
+  body.innerHTML = _invFiltered.map(function(item) {
+    var avail = item.available;
+    var availColor = avail === 0 ? 'color:#EF4444' : avail < item.totalQty ? 'color:#F59E0B' : 'color:#22C55E';
+    var days  = item.defaultDueDays;
+    var dueLabel = !days || days === 0 ? 'None' : days % 30 === 0 ? (days/30) + ' mo' : days % 7 === 0 ? (days/7) + ' wk' : days + 'd';
+    // Reorder badge
+    var reorderBadge = '';
+    if (item.reorderPoint > 0) {
+      if (item.atReorder) {
+        reorderBadge = '<span style="font-size:.72rem;font-weight:700;color:#92400E;background:rgba(245,158,11,.15);border-radius:3px;padding:.1rem .35rem">' + item.reorderPoint + ' ⚠️</span>';
+      } else {
+        reorderBadge = '<span style="font-size:.75rem;color:var(--muted)">' + item.reorderPoint + '</span>';
+      }
+    } else {
+      reorderBadge = '<span style="font-size:.75rem;color:var(--muted)">—</span>';
+    }
+    return '<tr' + (item.atReorder ? ' style="background:rgba(245,158,11,.05)"' : '') + '>' +
+      '<td><code style="font-size:.72rem">' + esc(item.barcode) + '</code></td>' +
+      '<td style="font-weight:500">' + esc(item.name) + '</td>' +
+      '<td style="font-size:.82rem;color:var(--muted)">' + esc(item.stationKey || '—') + '</td>' +
+      '<td style="font-size:.82rem;color:var(--muted)">' + esc(item.category || '—') + '</td>' +
+      '<td style="' + availColor + ';font-weight:700">' + avail + '</td>' +
+      '<td style="color:var(--muted)">' + item.totalQty + '</td>' +
+      '<td>' + reorderBadge + '</td>' +
+      '<td style="font-size:.82rem;color:var(--muted)">' + dueLabel + '</td>' +
+      '<td style="white-space:nowrap">' +
+        '<button class="btn-icon" title="Edit"   onclick="invEditItem(this)" data-bc="' + esc(item.barcode) + '">✏️</button> ' +
+        '<button class="btn-icon" title="Adjust qty" onclick="openAdjModal(this)" data-bc="' + esc(item.barcode) + '" data-name="' + esc(item.name) + '" data-qty="' + item.totalQty + '">📦</button> ' +
+        '<button class="btn-icon" title="Delete" onclick="invDelItem(this)"  data-bc="' + esc(item.barcode) + '" data-bld="' + esc(item.building) + '">🗑️</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ── Add/Edit modal: populate station dropdown ─────────────────────
+function populateItemStationSelect(currentStation, forceBld) {
+  // Use forceBld if provided (edit mode), else iBuilding field, else currentBuilding
+  var bld = forceBld
+    || (document.getElementById('iBuilding') ? document.getElementById('iBuilding').value : '')
+    || currentBuilding;
+  var sel = document.getElementById('iStation');
+  if (!sel) return;
+  var stations = allStations.filter(function(s) { return s.building === bld; });
+  sel.innerHTML = '<option value="">— No station —</option>' +
+    stations.map(function(s) {
+      var sel2 = s.key === currentStation ? ' selected' : '';
+      return '<option value="' + esc(s.key) + '"' + sel2 + '>' + esc(s.name) + '</option>';
+    }).join('');
+}
+
+// ── Adjust Qty modal ─────────────────────────────────────────────
+var _adjBarcode = null;
+var _adjTotalQty = 0;
+
+function openAdjModal(btn) {
+  _adjBarcode  = btn.dataset.bc;
+  _adjTotalQty = parseInt(btn.dataset.qty) || 0;
+  document.getElementById('adjItemLabel').textContent = btn.dataset.name + ' (current total: ' + _adjTotalQty + ')';
+  document.getElementById('adjDelta').value  = '-1';
+  document.getElementById('adjNotes').value  = '';
+  document.getElementById('adjReason').value = 'Lost';
+  updateAdjPreview();
+  document.getElementById('adjModal').classList.add('open');
+}
+
+function closeAdjModal() {
+  document.getElementById('adjModal').classList.remove('open');
+  _adjBarcode = null;
+}
+
+function adjStep(n) {
+  var el = document.getElementById('adjDelta');
+  el.value = (parseInt(el.value) || 0) + n;
+  updateAdjPreview();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var deltaEl = document.getElementById('adjDelta');
+  if (deltaEl) deltaEl.addEventListener('input', updateAdjPreview);
+});
+
+function updateAdjPreview() {
+  var delta  = parseInt(document.getElementById('adjDelta').value) || 0;
+  var newQty = Math.max(0, _adjTotalQty + delta);
+  document.getElementById('adjNewQtyPreview').textContent =
+    'New total: ' + newQty + (delta > 0 ? ' (+' + delta + ')' : ' (' + delta + ')');
+}
+
+function saveAdj() {
+  if (!_adjBarcode) return;
+  var bld   = currentBuilding === 'district' ? (selectedBuilding || BUILDINGS[0]) : currentBuilding;
+  var delta  = parseInt(document.getElementById('adjDelta').value) || 0;
+  var reason = document.getElementById('adjReason').value;
+  var notes  = document.getElementById('adjNotes').value.trim();
+  if (delta === 0) { toast('Delta cannot be zero', 'error'); return; }
+  google.script.run
+    .withSuccessHandler(function(r) {
+      if (!r.success) { toast(r.message || 'Could not save', 'error'); return; }
+      toast('Adjusted: new total is ' + r.newQty, 'success');
+      closeAdjModal();
+      _invLoaded = false;
+      loadInventory();
+    })
+    .withFailureHandler(function(err) { toast(err.message, 'error'); })
+    .adjustInventoryQty(_adjBarcode, bld, delta, reason, notes);
+}
+
+// ── invShowSub — add alerts ───────────────────────────────────────
+var _origInvShowSub = typeof invShowSub !== 'undefined' ? invShowSub : null;
+function invShowSub(name) {
+  ['items','checkout','overdue','alerts'].forEach(function(s) {
+    var el = document.getElementById('invPage' + s.charAt(0).toUpperCase() + s.slice(1));
+    if (el) el.style.display = (s === name) ? 'block' : 'none';
+    var btn = document.getElementById('invSub' + s.charAt(0).toUpperCase() + s.slice(1));
+    if (btn) btn.className = (s === name) ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+  });
+  if (name === 'items'    && !_invLoaded) loadInventory();
+  if (name === 'checkout') initCoPanel();
+  if (name === 'overdue')  loadOverdue();
+  if (name === 'alerts')   loadMyAlerts();
+}
+
+// ── Alert subscriptions ───────────────────────────────────────────
+function loadAlertStations() {
+  var bld = document.getElementById('alertBuilding').value;
+  var sel = document.getElementById('alertStation');
+  if (!bld) { sel.innerHTML = '<option value="">— Select building first —</option>'; return; }
+  var stations = allStations.filter(function(s) { return s.building === bld; });
+  sel.innerHTML = '<option value="">— Select station —</option>' +
+    stations.map(function(s) { return '<option value="' + esc(s.key) + '">' + esc(s.name) + '</option>'; }).join('');
+}
+
+function initAlertsTab() {
+  var bSel = document.getElementById('alertBuilding');
+  if (!bSel) return;
+  if (currentBuilding === 'district') {
+    bSel.innerHTML = '<option value="">— Select —</option>' +
+      BUILDINGS.map(function(b) { return '<option value="' + esc(b) + '">' + esc(b) + '</option>'; }).join('');
+  } else {
+    bSel.innerHTML = '<option value="' + esc(currentBuilding) + '" selected>' + esc(currentBuilding) + '</option>';
+    bSel.disabled = true;
+    loadAlertStations();
+  }
+}
+
+function loadMyAlerts() {
+  initAlertsTab();
+  var el = document.getElementById('myAlertsList');
+  if (el) el.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:.8rem">Loading…</div>';
+  google.script.run
+    .withSuccessHandler(function(subs) { renderMyAlerts(subs); })
+    .withFailureHandler(function() {
+      if (el) el.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:.8rem">Could not load</div>';
+    })
+    .getMyAlertSubscriptions();
+}
+
+function renderMyAlerts(subs) {
+  var el = document.getElementById('myAlertsList');
+  if (!el) return;
+  if (!subs.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:1rem;font-size:.8rem">No subscriptions yet.</div>';
+    return;
+  }
+  el.innerHTML = subs.map(function(s) {
+    var types = [];
+    if (s.notifyReorder) types.push('Reorder');
+    if (s.notifyOverdue) types.push('Overdue');
+    return '<div style="display:flex;align-items:center;gap:.5rem;padding:.55rem 0;border-bottom:.5px solid var(--border);font-size:.83rem">' +
+      '<div style="flex:1">' +
+        '<div style="font-weight:500">' + esc(s.building) + ' / ' + esc(s.stationKey) + '</div>' +
+        '<div style="font-size:.75rem;color:var(--muted)">' + types.join(', ') + '</div>' +
+      '</div>' +
+      '<button class="btn-icon" title="Unsubscribe" onclick="unsubAlert(this)" data-bld="' + esc(s.building) + '" data-sk="' + esc(s.stationKey) + '">🗑️</button>' +
+    '</div>';
+  }).join('');
+}
+
+function saveAlertSub() {
+  var bld = document.getElementById('alertBuilding').value;
+  var sk  = document.getElementById('alertStation').value;
+  var nr  = document.getElementById('alertNotifyReorder').checked;
+  var no2 = document.getElementById('alertNotifyOverdue').checked;
+  if (!bld) { toast('Please select a building', 'error'); return; }
+  if (!sk)  { toast('Please select a station', 'error'); return; }
+  if (!nr && !no2) { toast('Select at least one alert type', 'error'); return; }
+  google.script.run
+    .withSuccessHandler(function(r) {
+      document.getElementById('alertSubResult').textContent =
+        r.updated ? 'Subscription updated.' : 'Subscribed successfully.';
+      setTimeout(function() { document.getElementById('alertSubResult').textContent = ''; }, 3000);
+      loadMyAlerts();
+    })
+    .withFailureHandler(function(err) { toast(err.message, 'error'); })
+    .subscribeAlerts(bld, sk, nr, no2);
+}
+
+function unsubAlert(btn) {
+  appConfirm('Remove this alert subscription?', function() {
+    google.script.run
+      .withSuccessHandler(function() { loadMyAlerts(); })
+      .withFailureHandler(function(err) { toast(err.message, 'error'); })
+      .unsubscribeAlerts(btn.dataset.bld, btn.dataset.sk);
+  }, 'Remove Subscription');
+}
+
+
+function toggleNoDueDate() {
+  var ndd = document.getElementById('iNoDueDate').checked;
+  var dur = document.getElementById('iDueDuration');
+  dur.style.opacity       = ndd ? '0.35' : '1';
+  dur.style.pointerEvents = ndd ? 'none'  : 'auto';
+  if (ndd) document.getElementById('iDuePreview').textContent = '= no due date';
+  else updateDuePreview();
+}
+
+
+function forceDashOut(studentId, studentName) {
+  appConfirm('Force check out ' + studentName + '?', function() {
+    google.script.run
+      .withSuccessHandler(function(r) {
+        if (r && r.success) {
+          toast((r.name || studentName) + ' checked out', 'success');
+          setTimeout(loadDashboard, 600);
+        } else {
+          toast((r && r.message) || 'Could not check out', 'error');
+        }
+      })
+      .withFailureHandler(function(err) { toast(err.message, 'error'); })
+      .forceCheckOutLog(studentId, selectedBuilding, selectedStation);
+  }, 'Force Check Out');
+}
+
+
+// Keep the Scan tab station selector in sync after force actions from Students tab
+function _syncScanStation_(stationKey) {
+  var sel = document.getElementById('stationSelect');
+  if (sel && stationKey) {
+    // Check if this station exists in the scan dropdown
+    var found = Array.from(sel.options).some(o => o.value === stationKey);
+    if (found) {
+      sel.value = stationKey;
+      // Update hero label
+      var label = document.getElementById('scanHeroLabel');
+      if (label) {
+        var st = allStations.find(function(s) { return s.key === stationKey; });
+        if (st) label.textContent = 'Ready to scan — ' + st.name;
+      }
+    }
+  }
+}
+
+
+// ── Custom confirm (replaces blocked browser confirm() in iframes) ─
+var _appConfirmCallback = null;
+function appConfirm(message, onOK, title) {
+  document.getElementById('appConfirmMsg').textContent = message;
+  document.getElementById('appConfirmTitle').textContent = title || 'Confirm';
+  document.getElementById('appConfirmModal').classList.add('open');
+  _appConfirmCallback = onOK;
+}
+function appConfirmModal(ok) {
+  document.getElementById('appConfirmModal').classList.remove('open');
+  if (ok && _appConfirmCallback) _appConfirmCallback();
+  _appConfirmCallback = null;
+}
+
+
+
+</script>
+
+</body>
+</html>

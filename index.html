@@ -564,48 +564,84 @@ function startCam(stream) {
 // ═══════════════════════════════════════════════
 let spkCtx = null;
 
+// Wikimedia Commons red-tailed hawk screech (public domain)
+const HAWK_URL = 'https://upload.wikimedia.org/wikipedia/commons/f/f9/Buteo_jamaicensis_cry.ogg';
+let hawkBuffer = null;
+let hawkLoadFailed = false;
+
+// Pre-load hawk sound as soon as page loads
+async function loadHawkSound() {
+  try {
+    if (!spkCtx) spkCtx = new AudioContext();
+    const response = await fetch(HAWK_URL);
+    if (!response.ok) throw new Error('fetch failed');
+    const arrayBuffer = await response.arrayBuffer();
+    hawkBuffer = await spkCtx.decodeAudioData(arrayBuffer);
+  } catch(e) {
+    hawkLoadFailed = true;
+  }
+}
+loadHawkSound();
+
 function playTone(channel) {
   if (!spkCtx) spkCtx = new AudioContext();
-  
-  // Resume context if suspended (required by Chrome autoplay policy)
-  const play = () => {
-    const osc = spkCtx.createOscillator();
-    const gain = spkCtx.createGain();
-    const panner = spkCtx.createStereoPanner();
 
-    osc.type = 'sine';
-    osc.frequency.value = 440;
-    gain.gain.value = 0.8;
-    panner.pan.value = channel === 'left' ? -1 : channel === 'right' ? 1 : 0;
-
-    osc.connect(gain);
-    gain.connect(panner);
-    panner.connect(spkCtx.destination);
-
-    osc.start();
-    gain.gain.setValueAtTime(0.8, spkCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, spkCtx.currentTime + 3.0);
-    osc.stop(spkCtx.currentTime + 3.0);
-
+  const doPlay = () => {
     const wave = document.getElementById('speakerWave');
     const status = document.getElementById('speakerStatus');
     const dot = document.getElementById('spkDot');
+    const panVal = channel === 'left' ? -1 : channel === 'right' ? 1 : 0;
+    const label = channel === 'both' ? 'both channels' : channel + ' channel only';
 
     wave.classList.add('playing');
-    const label = channel === 'both' ? 'both channels' : channel + ' channel only';
-    status.textContent = `Playing 440 Hz tone — ${label}`;
     dot.className = 'status-dot ok';
 
-    setTimeout(() => {
-      wave.classList.remove('playing');
-      status.textContent = 'Did you hear it? If not, check your volume or audio output.';
-    }, 3100);
+    if (hawkBuffer && !hawkLoadFailed) {
+      // Play hawk screech
+      const source = spkCtx.createBufferSource();
+      const panner = spkCtx.createStereoPanner();
+      const gain = spkCtx.createGain();
+      source.buffer = hawkBuffer;
+      source.connect(gain);
+      gain.connect(panner);
+      panner.connect(spkCtx.destination);
+      panner.pan.value = panVal;
+      gain.gain.value = 1.0;
+      source.start();
+      status.textContent = `🦅 RedHawk screech — ${label}`;
+      const duration = (hawkBuffer.duration * 1000) + 200;
+      setTimeout(() => {
+        wave.classList.remove('playing');
+        status.textContent = 'Did you hear it? If not, check your volume or audio output.';
+      }, duration);
+    } else {
+      // Fallback: sine wave tone
+      const osc = spkCtx.createOscillator();
+      const gain = spkCtx.createGain();
+      const panner = spkCtx.createStereoPanner();
+      osc.type = 'sine';
+      osc.frequency.value = 440;
+      gain.gain.value = 0.8;
+      panner.pan.value = panVal;
+      osc.connect(gain);
+      gain.connect(panner);
+      panner.connect(spkCtx.destination);
+      osc.start();
+      gain.gain.setValueAtTime(0.8, spkCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, spkCtx.currentTime + 3.0);
+      osc.stop(spkCtx.currentTime + 3.0);
+      status.textContent = `Playing 440 Hz tone — ${label}`;
+      setTimeout(() => {
+        wave.classList.remove('playing');
+        status.textContent = 'Did you hear it? If not, check your volume or audio output.';
+      }, 3100);
+    }
   };
 
   if (spkCtx.state === 'suspended') {
-    spkCtx.resume().then(play);
+    spkCtx.resume().then(doPlay);
   } else {
-    play();
+    doPlay();
   }
 }
 

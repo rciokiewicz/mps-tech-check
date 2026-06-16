@@ -410,11 +410,11 @@
     </div>
     <div class="card-body">
       <div class="speaker-btns">
-        <button class="btn btn-primary" onclick="playTone('both')">▶ Play Test Tone</button>
-        <button class="btn btn-ghost" onclick="playTone('left')">Left only</button>
-        <button class="btn btn-ghost" onclick="playTone('right')">Right only</button>
+        <button class="btn btn-primary" onmousedown="playTone('both')">▶ Play Test Tone</button>
+        <button class="btn btn-ghost" onmousedown="playTone('left')">Left only</button>
+        <button class="btn btn-ghost" onmousedown="playTone('right')">Right only</button>
       </div>
-      <div style="font-size:11px; color:var(--muted); margin-top:6px;">Tip: left-click anywhere on this card for left speaker, right-click for right speaker.</div>
+      <div style="font-size:11px; color:var(--muted); margin-top:6px;">Tip: use Left only / Right only buttons to isolate each speaker.</div>
       <div id="speakerWave" style="margin-top:12px;">
         <span></span><span></span><span></span><span></span><span></span><span></span>
       </div>
@@ -557,37 +557,47 @@ let spkCtx = null;
 
 function playTone(channel) {
   if (!spkCtx) spkCtx = new AudioContext();
-  const osc = spkCtx.createOscillator();
-  const gain = spkCtx.createGain();
-  const panner = spkCtx.createStereoPanner();
+  
+  // Resume context if suspended (required by Chrome autoplay policy)
+  const play = () => {
+    const osc = spkCtx.createOscillator();
+    const gain = spkCtx.createGain();
+    const panner = spkCtx.createStereoPanner();
 
-  osc.type = 'sine';
-  osc.frequency.value = 440;
-  gain.gain.value = 0.8;
-  panner.pan.value = channel === 'left' ? -1 : channel === 'right' ? 1 : 0;
+    osc.type = 'sine';
+    osc.frequency.value = 440;
+    gain.gain.value = 0.8;
+    panner.pan.value = channel === 'left' ? -1 : channel === 'right' ? 1 : 0;
 
-  osc.connect(gain);
-  gain.connect(panner);
-  panner.connect(spkCtx.destination);
+    osc.connect(gain);
+    gain.connect(panner);
+    panner.connect(spkCtx.destination);
 
-  osc.start();
-  gain.gain.setValueAtTime(0.8, spkCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.0001, spkCtx.currentTime + 3.0);
-  osc.stop(spkCtx.currentTime + 3.0);
+    osc.start();
+    gain.gain.setValueAtTime(0.8, spkCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, spkCtx.currentTime + 3.0);
+    osc.stop(spkCtx.currentTime + 3.0);
 
-  const wave = document.getElementById('speakerWave');
-  const status = document.getElementById('speakerStatus');
-  const dot = document.getElementById('spkDot');
+    const wave = document.getElementById('speakerWave');
+    const status = document.getElementById('speakerStatus');
+    const dot = document.getElementById('spkDot');
 
-  wave.classList.add('playing');
-  const label = channel === 'both' ? 'both channels' : channel + ' channel only';
-  status.textContent = `Playing 440 Hz tone — ${label}`;
-  dot.className = 'status-dot ok';
+    wave.classList.add('playing');
+    const label = channel === 'both' ? 'both channels' : channel + ' channel only';
+    status.textContent = `Playing 440 Hz tone — ${label}`;
+    dot.className = 'status-dot ok';
 
-  setTimeout(() => {
-    wave.classList.remove('playing');
-    status.textContent = 'Did you hear it? If not, check your volume or audio output.';
-  }, 3100);
+    setTimeout(() => {
+      wave.classList.remove('playing');
+      status.textContent = 'Did you hear it? If not, check your volume or audio output.';
+    }, 3100);
+  };
+
+  if (spkCtx.state === 'suspended') {
+    spkCtx.resume().then(play);
+  } else {
+    play();
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -705,15 +715,6 @@ function litClick(dotId, btnId) {
 }
 
 document.addEventListener('mousedown', e => {
-  const onSpeakerCard = document.getElementById('speakerCard').contains(e.target);
-
-  // Speaker card shortcuts — left click = left, right click = right
-  if (onSpeakerCard && e.target.tagName !== 'BUTTON') {
-    if (e.button === 0) { e.preventDefault(); playTone('left'); }
-    else if (e.button === 2) { e.preventDefault(); playTone('right'); }
-    return; // don't count speaker card clicks as mouse test clicks
-  }
-
   // Mouse test tracking
   totalClicks++;
   document.getElementById('mouseDot').className = 'status-dot ok';

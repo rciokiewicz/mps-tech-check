@@ -368,7 +368,7 @@
     <strong>Mic &amp; Camera access needed</strong>
     Click to allow — required for the mic and webcam tests.
   </div>
-  <button autofocus onclick="requestPermissions()">Allow Access</button>
+  <button autofocus onclick="requestPermissions()" onkeydown="if(event.key==='Enter')requestPermissions()">Allow Access</button>
 </div>
 
 <div class="grid">
@@ -719,14 +719,16 @@ document.addEventListener('mousedown', e => {
 
 // Speaker card click shortcuts
 const speakerCard = document.getElementById('speakerCard');
-speakerCard.addEventListener('click', e => {
-  // Only fire if not clicking a button directly
-  if (e.target.tagName !== 'BUTTON') playTone('left');
+speakerCard.addEventListener('mousedown', e => {
+  if (e.button === 0 && e.target.tagName !== 'BUTTON') {
+    e.preventDefault();
+    playTone('left');
+  } else if (e.button === 2) {
+    e.preventDefault();
+    playTone('right');
+  }
 });
-speakerCard.addEventListener('contextmenu', e => {
-  e.preventDefault();
-  playTone('right');
-});
+speakerCard.addEventListener('contextmenu', e => e.preventDefault());
 
 document.addEventListener('mousemove', e => {
   document.getElementById('mouseCoords').textContent = `x: ${e.clientX} \u00a0 y: ${e.clientY}`;

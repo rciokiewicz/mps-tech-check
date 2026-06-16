@@ -554,7 +554,6 @@ function startCam(stream) {
 // SPEAKER
 // ═══════════════════════════════════════════════
 let spkCtx = null;
-let spkTested = false;
 
 function playTone(channel) {
   if (!spkCtx) spkCtx = new AudioContext();
@@ -584,7 +583,6 @@ function playTone(channel) {
   const label = channel === 'both' ? 'both channels' : channel + ' channel only';
   status.textContent = `Playing 440 Hz tone — ${label}`;
   dot.className = 'status-dot ok';
-  spkTested = true;
 
   setTimeout(() => {
     wave.classList.remove('playing');
@@ -653,7 +651,7 @@ function labelToCode(label, idx, row) {
   return label;
 }
 
-const dot = document.getElementById('kbDot');
+const kbDot = document.getElementById('kbDot');
 let litTimeout = {};
 
 document.addEventListener('keydown', e => {
@@ -675,7 +673,7 @@ document.addEventListener('keydown', e => {
 
   document.getElementById('kbLast').textContent = 'Last key: ' + (e.key === ' ' ? 'Space' : e.key) + '  [' + code + ']';
   document.getElementById('kbFooter').textContent = pressed.size + ' unique key' + (pressed.size !== 1 ? 's' : '') + ' pressed';
-  dot.className = 'status-dot ok';
+  kbDot.className = 'status-dot ok';
   document.getElementById('kbStatus').textContent = 'Keys light up as you press them.';
 });
 
@@ -707,28 +705,28 @@ function litClick(dotId, btnId) {
 }
 
 document.addEventListener('mousedown', e => {
+  const onSpeakerCard = document.getElementById('speakerCard').contains(e.target);
+
+  // Speaker card shortcuts — left click = left, right click = right
+  if (onSpeakerCard && e.target.tagName !== 'BUTTON') {
+    if (e.button === 0) { e.preventDefault(); playTone('left'); }
+    else if (e.button === 2) { e.preventDefault(); playTone('right'); }
+    return; // don't count speaker card clicks as mouse test clicks
+  }
+
+  // Mouse test tracking
   totalClicks++;
   document.getElementById('mouseDot').className = 'status-dot ok';
   document.getElementById('mouseFooter').textContent = totalClicks + ' click' + (totalClicks !== 1 ? 's' : '') + ' detected';
-  document.getElementById('mouseStatus').textContent = ['Left click', 'Middle click', 'Right click'][e.button] || 'Click' + ' detected';
+  document.getElementById('mouseStatus').textContent = (['Left click', 'Middle click', 'Right click'][e.button] || 'Click') + ' detected';
 
   if (e.button === 0) litClick('dotLeft', 'mouseLeft');
   else if (e.button === 1) litClick('dotMiddle', 'mouseWheel');
   else if (e.button === 2) litClick('dotRight', 'mouseRight');
 });
 
-// Speaker card click shortcuts
-const speakerCard = document.getElementById('speakerCard');
-speakerCard.addEventListener('mousedown', e => {
-  if (e.button === 0 && e.target.tagName !== 'BUTTON') {
-    e.preventDefault();
-    playTone('left');
-  } else if (e.button === 2) {
-    e.preventDefault();
-    playTone('right');
-  }
-});
-speakerCard.addEventListener('contextmenu', e => e.preventDefault());
+// Suppress context menu everywhere so right-click works as speaker test on speaker card
+document.addEventListener('contextmenu', e => e.preventDefault());
 
 document.addEventListener('mousemove', e => {
   document.getElementById('mouseCoords').textContent = `x: ${e.clientX} \u00a0 y: ${e.clientY}`;

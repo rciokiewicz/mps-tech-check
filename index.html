@@ -654,7 +654,8 @@ const ROWS = [
   ['Tab','Q','W','E','R','T','Y','U','I','O','P','[',']','\\'],
   ['CapsLock','A','S','D','F','G','H','J','K','L',';',"'",'Enter'],
   ['Shift','Z','X','C','V','B','N','M',',','.','/', 'ShiftR'],
-  ['Ctrl','Alt',' ','AltR','CtrlR']
+  ['Ctrl','Alt',' ','AltR','CtrlR'],
+  ['←','↑','↓','→']
 ];
 
 const WIDE_KEYS = new Set(['Backspace','Tab','CapsLock','Enter','Shift']);
@@ -691,7 +692,7 @@ function labelToCode(label, idx, row) {
     'Esc':'Escape',' ':'Space','Backspace':'Backspace','Tab':'Tab',
     'CapsLock':'CapsLock','Enter':'Enter','Shift':'ShiftLeft','ShiftR':'ShiftRight',
     'Ctrl':'ControlLeft','Alt':'AltLeft','AltR':'AltRight','CtrlR':'ControlRight',
-    '\\':'Backslash',
+    '\\':'Backslash','←':'ArrowLeft','↑':'ArrowUp','↓':'ArrowDown','→':'ArrowRight',
     '`':'Backquote','-':'Minus','=':'Equal','[':'BracketLeft',
     ']':'BracketRight',';':'Semicolon',"'":'Quote',',':'Comma',
     '.':'Period','/':'Slash','F1':'F1','F2':'F2','F3':'F3','F4':'F4',
